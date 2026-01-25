@@ -1,25 +1,20 @@
-#FROM ubuntu:latest
-#LABEL authors="loz"
-#
-#ENTRYPOINT ["top", "-b"]
+FROM pytorch/pytorch:2.10.0-cuda12.6-cudnn9-runtime
 
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
-
-WORKDIR /app
-
-# Install Python 3 + pip + other basics
+# Install system dependencies for venv + pip
 RUN apt-get update && \
-apt-get install -y python3 python3-pip && \
+apt-get install -y python3-venv build-essential && \
 rm -rf /var/lib/apt/lists/*
 
-# Need a specific wheel for the torch CUDA version & it doesn't run from inside requirements.txt. Installing separately
-RUN pip3 install torch --index-url https://download.pytorch.org/whl/cu126
+# Set working directory
+WORKDIR /app
+
+# Create venv
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+# Install libraries in venv
 COPY requirements.txt .
-# RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip3 install fastapi
-RUN pip3 install uvicorn
-RUN pip3 install numpy
-# RUN pip3 install sentence-transformers
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
 
