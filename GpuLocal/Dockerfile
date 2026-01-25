@@ -15,7 +15,11 @@ rm -rf /var/lib/apt/lists/*
 # Need a specific wheel for the torch CUDA version & it doesn't run from inside requirements.txt. Installing separately
 #RUN pip3 install torch --index-url https://download.pytorch.org/whl/cu126
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+# RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install fastapi
+RUN pip3 install uvicorn
+RUN pip3 install sentence-transformers
+RUN pip3 install numpy
 
 COPY main.py .
 
