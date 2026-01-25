@@ -1,0 +1,85 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'AzureFunction/**'
+      - 'GpuLocal/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      azurefunction: ${{ steps.filter.outputs.azurefunction }}
+      gpulocal: ${{ steps.filter.outputs.gpulocal }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            azurefunction:
+              - 'AzureFunction/**'
+            gpulocal:
+              - 'GpuLocal/**'
+
+  build-azurefunction:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.azurefunction == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Build and push AzureFunction image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/azurefunction:latest
+
+          docker build \
+            -t $IMAGE_NAME \
+            -f AzureFunction/Dockerfile \
+            AzureFunction
+
+          docker push $IMAGE_NAME
+
+  build-gpulocal:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gpulocal == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Build and push GpuLocal image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/gpulocal:latest
+
+          docker build \
+            -t $IMAGE_NAME \
+            -f GpuLocal/Dockerfile \
+            GpuLocal
+
+          docker push $IMAGE_NAME
