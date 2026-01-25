@@ -1,3 +1,8 @@
+#FROM ubuntu:latest
+#LABEL authors="loz"
+#
+#ENTRYPOINT ["top", "-b"]
+
 FROM pytorch/pytorch:2.10.0-cuda12.6-cudnn9-runtime
 
 WORKDIR /app
