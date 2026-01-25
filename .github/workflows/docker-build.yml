@@ -78,6 +78,7 @@ jobs:
           IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/gpulocal:latest
 
           docker build \
+            --progress=plain \
             -t $IMAGE_NAME \
             -f GpuLocal/Dockerfile \
             GpuLocal
