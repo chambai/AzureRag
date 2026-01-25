@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip3 install fastapi
 RUN pip3 install uvicorn
 RUN pip3 install numpy
-RUN pip3 install sentence-transformers
+# RUN pip3 install sentence-transformers
 
 COPY main.py .
 
