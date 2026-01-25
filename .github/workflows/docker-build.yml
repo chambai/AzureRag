@@ -1,35 +1,85 @@
-name: Build Docker Image
+name: Build and Push Docker Images
 
 on:
   push:
     branches:
-      - main   # or master
-  pull_request:
+      - main
+    paths:
+      - 'AzureFunction/**'
+      - 'GpuLocal/**'
 
 jobs:
-  build:
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      azurefunction: ${{ steps.filter.outputs.azurefunction }}
+      gpulocal: ${{ steps.filter.outputs.gpulocal }}
 
     steps:
-      # Checkout your repo
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Set up Docker Buildx (optional, good for multi-platform)
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Log in to DockerHub (optional, if you want to push)
-      - name: Log in to DockerHub
-        uses: docker/login-action@v2
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          filters: |
+            azurefunction:
+              - 'AzureFunction/**'
+            gpulocal:
+              - 'GpuLocal/**'
 
-      # Build the Docker image
-      - name: Build Docker image
-        run: docker build -t chambai/AzureRag:latest .
+  build-azurefunction:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.azurefunction == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-      # Push the Docker image (optional)
-      - name: Push Docker image
-        run: docker push chambai/AzureRag:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Build and push AzureFunction image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/azurefunction:latest
+
+          docker build \
+            -t $IMAGE_NAME \
+            -f AzureFunction/Dockerfile \
+            AzureFunction
+
+          docker push $IMAGE_NAME
+
+  build-gpulocal:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gpulocal == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Build and push GpuLocal image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/gpulocal:latest
+
+          docker build \
+            -t $IMAGE_NAME \
+            -f GpuLocal/Dockerfile \
+            GpuLocal
+
+          docker push $IMAGE_NAME
