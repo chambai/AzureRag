@@ -53,3 +53,5 @@ Dockerfile.*.swp
 
 # Optional: ignore built images locally
 *.tar
+
+scripts/

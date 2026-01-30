@@ -1,21 +1,32 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
-from embeddings import embed_text
 import uvicorn
+import numpy as np
+
+from .embeddings import embed_text
 
 app = FastAPI(title="Local Embedding Service")
+
 
 class TextRequest(BaseModel):
     texts: list[str]
 
+
+def get_embedder():
+    return embed_text
+
+
 @app.post("/embed")
-def get_embeddings(req: TextRequest):
+def get_embeddings(
+    req: TextRequest,
+    embedder=Depends(get_embedder)
+):
     try:
-        vectors = embed_text(req.texts)
+        vectors = embedder(req.texts)
         return {"vectors": vectors.tolist()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 if __name__ == "__main__":
-    # Keep server running
     uvicorn.run(app, host="0.0.0.0", port=8000)
