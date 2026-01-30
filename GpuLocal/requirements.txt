@@ -1,5 +1,6 @@
+# install torch manually as below line cannot be run from within this file
+# torch torchvision --index-url https://download.pytorch.org/whl/cu126
 fastapi
 uvicorn
-# torch
-sentence-transformers
 numpy
+sentence-transformers

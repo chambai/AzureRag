@@ -1,0 +1,55 @@
+# -----------------------------
+# PyCharm
+# -----------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Keep code style if desired (optional)
+# !.idea/codeStyles/
+
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.env.local
+
+# pip / build artifacts
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# -----------------------------
+# Docker
+# -----------------------------
+*.log
+*.tmp
+docker-compose.override.yml
+Dockerfile.*.swp
+
+# Optional: ignore built images locally
+*.tar
