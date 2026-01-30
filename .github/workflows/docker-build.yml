@@ -46,7 +46,7 @@ jobs:
 
       - name: Restore dependencies
         run: |
-          cd AzureFunction
+          cd Azure
           dotnet restore
 
       - name: Run AzureFunction unit tests
