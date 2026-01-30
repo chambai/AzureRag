@@ -1,82 +1,82 @@
-﻿using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using Azure.Storage.Blobs;
-using Microsoft.AspNetCore.Http;
+﻿using Azure.Storage.Blobs;
+using AzureFunction.Client;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text;
+using System.Text.Json;
 
 public class UploadFunction
 {
     private readonly ILogger _logger;
-    private readonly BlobServiceClient _blobServiceClient;
-    private readonly HttpClient _httpClient;
+    private readonly IBlobStorage _blobServiceClient;
+    private readonly IEmbeddingClient _embeddingClient;
 
-    private readonly string gpuServiceUrl = "http://192.168.122.1:8000/embed"; // Replace with your Linux server
-
-    public UploadFunction(ILoggerFactory loggerFactory, BlobServiceClient blobServiceClient)
+    public UploadFunction(
+        ILoggerFactory loggerFactory,
+        IBlobStorage blobServiceClient,
+        IEmbeddingClient embeddingClient)
     {
         _logger = loggerFactory.CreateLogger<UploadFunction>();
         _blobServiceClient = blobServiceClient;
-        _httpClient = new HttpClient();
+        _embeddingClient = embeddingClient;
     }
 
     [Function("UploadDocument")]
-    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = "upload")] HttpRequestData req)
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "upload")]
+        HttpRequestData req)
     {
-        //var form = await req.ReadAsStringAsync();
-        //var file = form.Files.First();
-
-        // Read JSON from body
-        var file = await JsonSerializer.DeserializeAsync<IFormFile>(req.Body);
-
-        if (file == null || file.Length==0)
+        // Require filename header
+        if (!req.Headers.TryGetValues("X-Filename", out var filenames))
         {
-            var badResp = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResp.WriteStringAsync("No document provided.");
-            return badResp;
+            return await BadRequest(req, "Missing X-Filename header.");
         }
 
-        //// ... continue processing, e.g., chunking, embedding, uploading
-        //var resp = req.CreateResponse(HttpStatusCode.OK);
-        //await resp.WriteStringAsync("Document uploaded successfully.");
-        //return resp;
-
-        // Store in Blob
-        var container = _blobServiceClient.GetBlobContainerClient("documents");
-        await container.CreateIfNotExistsAsync();
-        var blob = container.GetBlobClient(file.FileName);
-        using (var stream = file.OpenReadStream())
+        var fileName = filenames.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(fileName))
         {
-            await blob.UploadAsync(stream, overwrite: true);
+            return await BadRequest(req, "Invalid filename.");
         }
 
-        // 2️⃣ Read text from file (simplified)
+        if (req.Body == null || req.Body.Length == 0)
+        {
+            return await BadRequest(req, "No document provided.");
+        }
+
+        // Upload to Blob Storage
+        await _blobServiceClient.UploadAsync("documents", fileName, req.Body);
+
+        // Reset stream position
+        req.Body.Seek(0, SeekOrigin.Begin);
+
+        // Read text
         string text;
-        using (var reader = new StreamReader(file.OpenReadStream()))
+        using (var reader = new StreamReader(req.Body, Encoding.UTF8))
+        {
             text = await reader.ReadToEndAsync();
+        }
 
-        // 3️⃣ Chunk text
+        // Chunk text
         var chunks = Utilities.SplitIntoChunks(text);
 
-        // 4️⃣ Send each chunk to GPU service for embeddings
+        // Send chunks for embeddings
         foreach (var chunk in chunks)
         {
-            var payload = new { texts = new[] { chunk } };
-            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync(gpuServiceUrl, content);
-            // TODO: parse response and index into Azure AI Search
+            var embedding = await _embeddingClient.GetEmbeddingAsync(chunk);
+            // TODO: do something with the embedding
         }
 
         var resp = req.CreateResponse(HttpStatusCode.OK);
         await resp.WriteStringAsync("Document uploaded and embedding process triggered.");
         return resp;
     }
-}
 
-//public class DocumentUpload :   IFormFile
-//{
-//    public string Text { get; set; }
-//}
+    private static async Task<HttpResponseData> BadRequest(HttpRequestData req, string message)
+    {
+        var resp = req.CreateResponse(HttpStatusCode.BadRequest);
+        await resp.WriteStringAsync(message);
+        return resp;
+    }
+}

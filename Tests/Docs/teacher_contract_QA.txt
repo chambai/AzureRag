@@ -1,0 +1,8 @@
+Question: When is payment
+Answer: Monthly, on the last working day of the month
+
+Question: What happens if we are overpaid
+Answer: Recovery of overpayment will be made in accordance with the council's Procedure for the Recovery of overpaid salary
+
+Question: How much termination notice must teachers give?
+Answer: 2 calendar months
