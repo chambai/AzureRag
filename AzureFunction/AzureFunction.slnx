@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="../Tests/Tests.csproj" Id="effbcfbc-c61d-4638-ac05-8a1deaa8fef8" />
-  <Project Path="AzureFunction.csproj" />
-</Solution>

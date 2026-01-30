@@ -51,8 +51,8 @@ jobs:
 
       - name: Run AzureFunction unit tests
         run: |
-          cd AzureFunction
-          dotnet test --configuration Release --no-build
+          cd Azure
+          dotnet test AzureFunction.slnx --configuration Release
 
   # Unit Tests — GpuLocal (Python / pytest)
   unit-tests-gpulocal:
