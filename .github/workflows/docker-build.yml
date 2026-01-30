@@ -104,7 +104,7 @@ jobs:
           docker build \
             -t $IMAGE_NAME \
             -f Azure/AzureFunction/Dockerfile \
-            AzureFunction
+            Azure/AzureFunction
 
           docker push $IMAGE_NAME
 
