@@ -1,7 +1,7 @@
-name: Build and Push Docker Images
+name: Build, Push, Deploy and Test
 
 on:
-  workflow_dispatch: # allows manual runs
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -10,6 +10,7 @@ on:
       - 'GpuLocal/**'
 
 jobs:
+  # Detect what changed
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -29,8 +30,58 @@ jobs:
             gpulocal:
               - 'GpuLocal/**'
 
-  build-azurefunction:
+  # Unit Tests — AzureFunction (C# / xUnit)
+  unit-tests-azurefunction:
     needs: detect-changes
+    if: needs.detect-changes.outputs.azurefunction == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: |
+          cd AzureFunction
+          dotnet restore
+
+      - name: Run AzureFunction unit tests
+        run: |
+          cd AzureFunction
+          dotnet test --configuration Release --no-build
+
+  # Unit Tests — GpuLocal (Python / pytest)
+  unit-tests-gpulocal:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gpulocal == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd GpuLocal
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run GpuLocal unit tests
+        run: |
+          cd GpuLocal
+          pytest
+
+  # Build & Push — AzureFunction
+  build-azurefunction:
+    needs: unit-tests-azurefunction
     if: needs.detect-changes.outputs.azurefunction == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -57,8 +108,9 @@ jobs:
 
           docker push $IMAGE_NAME
 
+  # Build & Push — GpuLocal
   build-gpulocal:
-    needs: detect-changes
+    needs: unit-tests-gpulocal
     if: needs.detect-changes.outputs.gpulocal == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -85,3 +137,66 @@ jobs:
             GpuLocal
 
           docker push $IMAGE_NAME
+
+  # Deploy — AzureFunction (machine-a)
+  deploy-azurefunction:
+    needs: build-azurefunction
+    if: needs.detect-changes.outputs.azurefunction == 'true'
+    runs-on: [self-hosted, machine-a]
+
+    steps:
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Pull & run AzureFunction container
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/azurefunction:latest
+          docker stop azurefunction || true
+          docker rm azurefunction || true
+          docker run -d \
+            --name azurefunction \
+            -p 8080:80 \
+            ghcr.io/${{ github.repository_owner }}/azurefunction:latest
+
+  # Deploy — GpuLocal (machine-b)
+  deploy-gpulocal:
+    needs: build-gpulocal
+    if: needs.detect-changes.outputs.gpulocal == 'true'
+    runs-on: [self-hosted, machine-b]
+
+    steps:
+      - name: Login to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+      - name: Pull & run GpuLocal container
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/gpulocal:latest
+          docker stop gpulocal || true
+          docker rm gpulocal || true
+          docker run -d \
+            --name gpulocal \
+            -p 8080:80 \
+            ghcr.io/${{ github.repository_owner }}/gpulocal:latest
+
+  # End-to-End Tests (Postman / Newman)
+  e2e-tests:
+    needs: [deploy-azurefunction, deploy-gpulocal]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run Postman E2E tests
+        run: |
+          newman run postman/e2e_collection.json \
+            --env-var "AZUREFUNCTION=http://machine-a:8080" \
+            --env-var "GPULOCAL=http://machine-b:8080"
