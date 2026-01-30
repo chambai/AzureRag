@@ -68,16 +68,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install dependencies (CPU-safe)
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |
           cd GpuLocal
-          pip install -r requirements.txt
-          pip install pytest
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
 
-      - name: Run GpuLocal unit tests
+      - name: Run unit tests
+        env:
+          # Prevent torch / transformers from touching CUDA
+          CUDA_VISIBLE_DEVICES: ""
+          TRANSFORMERS_NO_TORCH: "1"
+          PYTHONPATH: .
         run: |
-          cd GpuLocal
-          pytest
+          pytest GpuLocal/tests -v
 
   # Build & Push — AzureFunction
   build-azurefunction:
