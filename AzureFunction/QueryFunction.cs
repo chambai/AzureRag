@@ -1,10 +1,13 @@
 ﻿using Azure;
 using Azure.AI.OpenAI;
 using Azure.AI.OpenAI.Chat;
+using Azure.Search.Documents;
+using AzureFunction.Client;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using OpenAI.Embeddings;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -13,29 +16,31 @@ using System.Text.Json;
 public class QueryFunction
 {
     private readonly ILogger _logger;
-    private readonly HttpClient _httpClient;
-    private readonly string gpuServiceUrl = "http://YOUR_GPU_SERVER:8000/embed"; // Linux GPU service
-    private readonly string searchEndpoint = "https://YOUR_SEARCH_SERVICE.search.windows.net";
-    private readonly string searchApiKey = "YOUR_API_KEY";
-    private readonly string indexName = "documents";
-    private readonly string apiVersion = "2023-07-01-Preview";
-    private readonly AzureOpenAIClient _azureOpenAIClient;
+    private readonly IConfig _config;
+    private readonly IEmbeddingClient _embeddingClient;
+    private readonly ISearchClient _searchClient;
+    private readonly IChatCompletionClient _chatClient;
 
-    public QueryFunction(ILoggerFactory loggerFactory)
+    public QueryFunction(
+        ILoggerFactory loggerFactory,
+        IConfig config,
+        IEmbeddingClient embeddingClient,
+        ISearchClient searchClient,
+        IChatCompletionClient chatClient)
     {
         _logger = loggerFactory.CreateLogger<QueryFunction>();
-        _httpClient = new HttpClient();
-
-        // Initialize AzureOpenAIClient for your Azure OpenAI endpoint
-        _azureOpenAIClient = new AzureOpenAIClient(
-            new Uri("https://YOUR_OPENAI_ENDPOINT.openai.azure.com/"),
-            new AzureKeyCredential("YOUR_API_KEY")
-        );
+        _config = config;
+        _embeddingClient = embeddingClient;
+        _searchClient = searchClient;
+        _chatClient = chatClient;
     }
 
     [Function("QueryDocument")]
-    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", Route = "query")] HttpRequestData req)
+    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", Route = "query")] HttpRequestData req, FunctionContext context)
     {
+        CancellationToken ct = context.CancellationToken;
+
+        // read query parameter
         string question = req.Query["q"];
 
         if (string.IsNullOrEmpty(question))
@@ -44,74 +49,35 @@ public class QueryFunction
             await badResp.WriteStringAsync("Missing query parameter 'q'.");
             return badResp;
         }
+        _logger.LogInformation("Received query: {Question}", question);
 
-        // 1️⃣ Get embedding from GPU service
-        var payload = new { texts = new[] { question } };
-        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        var gpuResp = await _httpClient.PostAsync(gpuServiceUrl, content);
-        gpuResp.EnsureSuccessStatusCode();
+        // Create embedding for the question
+        float[] queryVector = await _embeddingClient.GetEmbeddingAsync(question);
 
-        var vectorObj = JsonSerializer.Deserialize<VectorResponse>(await gpuResp.Content.ReadAsStringAsync());
-        var queryVector = vectorObj.Vectors[0].Select(f => (float)f).ToArray();
+        // vector search
+        IReadOnlyList<string> topChunks =
+            await _searchClient.SearchByVectorAsync(
+            queryVector,
+            k: 5);
 
-        // 2️⃣ Call Azure Search REST API for vector search
-        var searchUrl = $"{searchEndpoint}/indexes/{indexName}/docs/search?api-version={apiVersion}";
-        var restPayload = new
-        {
-            vectorQueries = new[]
-            {
-                new
-                {
-                    kind = "vector",
-                    vector = queryVector,
-                    fields = "contentVector", // Your vector field name
-                    k = 5
-                }
-            },
-            select = new[] { "content" }
-        };
-
-        var restContent = new StringContent(JsonSerializer.Serialize(restPayload), Encoding.UTF8, "application/json");
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, searchUrl)
-        {
-            Content = restContent
-        };
-        requestMessage.Headers.Add("api-key", searchApiKey);
-
-        var searchResp = await _httpClient.SendAsync(requestMessage);
-        searchResp.EnsureSuccessStatusCode();
-
-        var searchJson = await searchResp.Content.ReadAsStringAsync();
-        var searchResult = JsonSerializer.Deserialize<SearchResponse>(searchJson);
-        var topChunks = searchResult.Value.Select(v => v.Content).ToList();
-
-        // 3Build prompt for LLM
-        string prompt = "Answer the question based only on the following text:\n" +
-                        string.Join("\n", topChunks) +
-                        "\nQuestion: " + question;
-
-        // Call Azure OpenAI using AzureOpenAIClient (chat completion)
-        var chatClient = _azureOpenAIClient.GetChatClient("deployment-name");
+        // Build LLM prompt
+        string prompt =
+        "Answer the question using ONLY the information below.\n\n" +
+        string.Join("\n", topChunks) +
+        "\n\nQuestion: " + question;
 
 
-        // Prepare your messages
-        ChatMessage[] messages = new ChatMessage[]
-        {
-            new SystemChatMessage("You are a helpful assistant."),
-            new UserChatMessage(prompt)
-        };
+        // Ask Chat client
+        string answer = await _chatClient.GetAnswerAsync(
+        systemPrompt: "You are a helpful assistant.",
+        userPrompt: prompt,
+        cancellationToken: context.CancellationToken);
 
-        // Call chat completion directly
-        ChatCompletion response = chatClient.CompleteChat(messages);
 
-        // Extract answer
-        string answer = response.Content.Count > 0
-            ? response.Content[0].Text
-            : "No answer generated.";
-
-        var resp = req.CreateResponse(HttpStatusCode.OK);
-        await resp.WriteStringAsync(answer);
-        return resp;
+        // Return result
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        await response.WriteStringAsync(answer);
+        return response;
     }
 }
 

@@ -1,0 +1,41 @@
+# Git ignore for Tests project - keep repo docs checked in
+
+# Build outputs
+/bin/
+/obj/
+
+# Test results and coverage
+TestResults/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+*.vsp
+*.vspx
+
+# VS and IDE files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Debug/log files
+*.log
+*.pidb
+*.cache
+*.lastbuildstate
+
+# NuGet and packages
+**/packages/
+*.nupkg
+
+# Azure Functions local settings (do not commit secrets)
+local.settings.json
+
+# Temporary files
+*~ 
+~$*
+*.tmp
