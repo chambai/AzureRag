@@ -1,4 +1,5 @@
 # installation required for CI tests (no torch or CUDA dependencies)
 fastapi
 numpy
-pytest pytest-mock fastapi[all]
+pytest
+pytest-mock
