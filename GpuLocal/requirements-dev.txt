@@ -3,3 +3,4 @@ fastapi
 numpy
 pytest
 pytest-mock
+httpx
