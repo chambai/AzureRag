@@ -1,0 +1,9 @@
+# installation required for CI tests (no torch or CUDA dependencies)
+fastapi
+uvicorn
+numpy
+pytest
+pytest-mock
+httpx
+sentence-transformers
+torch
