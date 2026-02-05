@@ -16,15 +16,29 @@ builder.Services
     .ConfigureFunctionsApplicationInsights();
 
 // Configuration
-builder.Services.AddSingleton<IConfig, AppConfig>();
+// bind settings defined in local.settings.json to the specified class
+builder.Services.Configure<Settings>(builder.Configuration);
+builder.Services.AddSingleton<IClientFactory, ClientFactory>();
 
-// HttpClient factory (used by embedding / REST clients)
-builder.Services.AddHttpClient();
+// HttpClient factory (used by embedding / REST clients) - factory prevents duplicate http connections
+// Local GPU embedding REST web API
+builder.Services.AddHttpClient("GpuService", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
 
 // Clients
-builder.Services.AddSingleton<IBlobStorage>(new AzureBlobStorage(Factory.CreateBlobClient()));
-builder.Services.AddSingleton<IEmbeddingClient, GpuEmbeddingClient>();
-builder.Services.AddSingleton<ISearchClient, AzureSearchClient>();
-builder.Services.AddSingleton<IChatCompletionClient, AzureOpenAIChatClient>();
+builder.Services.AddSingleton<IBlobStorage>(sp =>
+    sp.GetRequiredService<IClientFactory>().CreateBlobStorageClient());
+
+builder.Services.AddSingleton<IEmbeddingClient>(sp =>
+    sp.GetRequiredService<IClientFactory>().CreateGpuClient());
+
+builder.Services.AddSingleton<IAiSearchClient>(sp =>
+    sp.GetRequiredService<IClientFactory>().CreateAISearchClient());
+
+builder.Services.AddSingleton<IChatCompletionClient>(sp =>
+    sp.GetRequiredService<IClientFactory>().CreateChatClient());
 
 builder.Build().Run();

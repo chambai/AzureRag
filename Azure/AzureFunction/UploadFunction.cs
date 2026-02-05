@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure.Search.Documents;
+using Azure.Storage.Blobs;
 using AzureFunction.Client;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -6,27 +7,31 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using HttpMultipartParser;
 
 public class UploadFunction
 {
     private readonly ILogger _logger;
     private readonly IBlobStorage _blobServiceClient;
     private readonly IEmbeddingClient _embeddingClient;
+    private readonly IAiSearchClient _searchClient;
 
     public UploadFunction(
         ILoggerFactory loggerFactory,
         IBlobStorage blobServiceClient,
-        IEmbeddingClient embeddingClient)
+        IEmbeddingClient embeddingClient,
+        IAiSearchClient searchClient)
     {
         _logger = loggerFactory.CreateLogger<UploadFunction>();
         _blobServiceClient = blobServiceClient;
         _embeddingClient = embeddingClient;
+        _searchClient = searchClient;
     }
 
     [Function("UploadDocument")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "upload")]
-        HttpRequestData req)
+        HttpRequestData req, FunctionContext context)
     {
         // Require filename header
         if (!req.Headers.TryGetValues("X-Filename", out var filenames))
@@ -45,15 +50,36 @@ public class UploadFunction
             return await BadRequest(req, "No document provided.");
         }
 
-        // Upload to Blob Storage
-        await _blobServiceClient.UploadAsync("documents", fileName, req.Body);
+        // Parse the stream
+        var parser = await MultipartFormDataParser.ParseAsync(req.Body);
 
-        // Reset stream position
-        req.Body.Seek(0, SeekOrigin.Begin);
+        // Get the file(s)
+        var file = parser.Files.FirstOrDefault();
+
+        if (file == null)
+        {
+            return await BadRequest(req, "No document provided.");
+        }
+
+        using var ms = new MemoryStream();
+        await file.Data.CopyToAsync(ms);
+
+        if (ms.Length == 0)
+        {
+            return await BadRequest(req, "No document provided.");
+        }
+
+        // reset memory position to zero
+        ms.Position = 0;
+
+        // Upload to Blob Storage
+        await _blobServiceClient.UploadAsync("documents", fileName, ms);
+
+        ms.Position = 0;
 
         // Read text
         string text;
-        using (var reader = new StreamReader(req.Body, Encoding.UTF8))
+        using (var reader = new StreamReader(ms, Encoding.UTF8, leaveOpen: true))
         {
             text = await reader.ReadToEndAsync();
         }
@@ -65,7 +91,8 @@ public class UploadFunction
         foreach (var chunk in chunks)
         {
             var embedding = await _embeddingClient.GetEmbeddingAsync(chunk);
-            // TODO: do something with the embedding
+            // store the embedding vector
+            await _searchClient.StoreVectorAsync(embedding, chunk, fileName, context.CancellationToken);
         }
 
         var resp = req.CreateResponse(HttpStatusCode.OK);
@@ -79,4 +106,6 @@ public class UploadFunction
         await resp.WriteStringAsync(message);
         return resp;
     }
+
+
 }

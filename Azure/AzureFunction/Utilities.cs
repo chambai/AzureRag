@@ -1,29 +1,24 @@
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.SemanticKernel.Text;
 
 public static class Utilities
 {
     public static List<string> SplitIntoChunks(string text, int maxTokens = 700, int overlap = 100)
     {
-        // Simple paragraph split
-        var paragraphs = Regex.Split(text, @"\r?\n\r?\n");
-        var chunks = new List<string>();
-        var currentChunk = "";
+        if (string.IsNullOrWhiteSpace(text)) return new List<string>();
 
-        foreach (var para in paragraphs)
-        {
-            if ((currentChunk + para).Length > maxTokens)
-            {
-                chunks.Add(currentChunk);
-                currentChunk = para.Substring(0, Math.Min(para.Length, maxTokens));
-            }
-            else
-            {
-                currentChunk += " " + para;
-            }
-        }
-        if (!string.IsNullOrEmpty(currentChunk))
-            chunks.Add(currentChunk);
+        // Safety: overlap must be less than maxTokens or SK will throw ArgumentException
+        int safeOverlap = Math.Min(overlap, maxTokens - 1);
+        if (safeOverlap < 0) safeOverlap = 0;
+
+#pragma warning disable SKEXP0050 // this is a warning on TextChunker that it is subject to change 
+        var lines = TextChunker.SplitPlainTextLines(text, maxTokens);
+
+        // Use safeOverlap here
+        var chunks = TextChunker.SplitPlainTextParagraphs(lines, maxTokens, safeOverlap);
+#pragma warning restore SKEXP0050
 
         return chunks;
     }

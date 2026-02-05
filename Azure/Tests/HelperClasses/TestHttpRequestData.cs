@@ -24,6 +24,15 @@ internal sealed class TestHttpRequestData : HttpRequestData
         Headers = new HttpHeadersCollection();
     }
 
+    public TestHttpRequestData(Uri url, string method, Stream bodyStream)
+        : base(new TestFunctionContext())
+    {
+        Url = url;
+        Method = method;
+        Body = bodyStream;
+        Headers = new HttpHeadersCollection();
+    }
+
     public override Stream Body { get; }
     public override HttpHeadersCollection Headers { get; }
     public override IReadOnlyCollection<IHttpCookie> Cookies

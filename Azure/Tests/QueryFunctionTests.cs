@@ -4,71 +4,72 @@ using System.Net;
 using System.Text;
 using Tests.Fakes;
 
-public class QueryFunctionTests
+namespace Tests
 {
-    private ILoggerFactory _loggerFactory = LoggerFactory.Create(builder => builder.AddDebug());
-
-    [Fact]
-    public async Task QueryFunction_Run_Returns_Text()
+    public class QueryFunctionTests
     {
-        var qValue = "How much termination notice must teachers give";
-        var uriBuilder = new UriBuilder("http://localhost/api/query");
-        uriBuilder.Query = $"q={Uri.EscapeDataString(qValue)}";
+        private ILoggerFactory _loggerFactory = LoggerFactory.Create(builder => builder.AddDebug());
 
-        // Arrange
-        var request = new TestHttpRequestData(uriBuilder.Uri, method: "GET");
-       
-        var function = new QueryFunction(
-            _loggerFactory,
-            new FakeConfig(),
-            new FakeEmbeddingClient(),
-            new FakeSearchClient(),
-            new FakeChatCompletionClient());
+        [Fact]
+        public async Task QueryFunction_Run_Returns_Text()
+        {
+            var qValue = "How much termination notice must teachers give";
+            var uriBuilder = new UriBuilder("http://localhost/api/query");
+            uriBuilder.Query = $"q={Uri.EscapeDataString(qValue)}";
 
-        var context = new TestFunctionContext();
+            // Arrange
+            var request = new TestHttpRequestData(uriBuilder.Uri, method: "GET");
 
-        // Act
-        var response = await function.Run(request, context);
+            var function = new QueryFunction(
+                _loggerFactory,
+                new FakeEmbeddingClient(),
+                new FakeSearchClient(),
+                new FakeChatCompletionClient());
 
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var context = new TestFunctionContext();
 
-        response.Body.Seek(0, SeekOrigin.Begin);
-        using var reader = new StreamReader(response.Body, Encoding.UTF8);
-        var body = await reader.ReadToEndAsync();
+            // Act
+            var response = await function.Run(request, context);
 
-        Console.WriteLine(body);
-        Assert.Matches(@".+", body); // at least 1 character
-    }
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-    [Fact]
-    public async Task QueryFunction_Run_NoQueryParameter_ReturnsBadRequest()
-    {
-        // Arrange
-        var request = new TestHttpRequestData(new Uri("http://localhost/api/query"), method: "GET");
-        // no query parameter "q" added to request.Query
+            response.Body.Seek(0, SeekOrigin.Begin);
+            using var reader = new StreamReader(response.Body, Encoding.UTF8);
+            var body = await reader.ReadToEndAsync();
 
-        var function = new QueryFunction(
-            _loggerFactory,
-            new FakeConfig(),
-            new FakeEmbeddingClient(),
-            new FakeSearchClient(),
-            new FakeChatCompletionClient());
+            Console.WriteLine(body);
+            Assert.Matches(@".+", body); // at least 1 character
+        }
 
-        var context = new TestFunctionContext();
+        [Fact]
+        public async Task QueryFunction_Run_NoQueryParameter_ReturnsBadRequest()
+        {
+            // Arrange
+            var request = new TestHttpRequestData(new Uri("http://localhost/api/query"), method: "GET");
+            // no query parameter "q" added to request.Query
 
-        // Act
-        var response = await function.Run(request, context);
+            var function = new QueryFunction(
+                _loggerFactory,
+                new FakeEmbeddingClient(),
+                new FakeSearchClient(),
+                new FakeChatCompletionClient());
 
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            var context = new TestFunctionContext();
 
-        // in the isolated worker model, the response body is a stream - read it manually
-        // go back to the begining of the stream as the stream position is at the end after writing the response
-        // if you don't do this, an empty string is returned
-        response.Body.Seek(0, SeekOrigin.Begin);    
-        using var reader = new StreamReader(response.Body);
-        var body = await reader.ReadToEndAsync();
-        Assert.Contains("Missing query parameter 'q'.", body);
+            // Act
+            var response = await function.Run(request, context);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            // in the isolated worker model, the response body is a stream - read it manually
+            // go back to the begining of the stream as the stream position is at the end after writing the response
+            // if you don't do this, an empty string is returned
+            response.Body.Seek(0, SeekOrigin.Begin);
+            using var reader = new StreamReader(response.Body);
+            var body = await reader.ReadToEndAsync();
+            Assert.Contains("Missing query parameter 'q'.", body);
+        }
     }
 }

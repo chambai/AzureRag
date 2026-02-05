@@ -1,6 +1,7 @@
 ﻿using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using AzureFunction.Client;
+using Microsoft.Extensions.Configuration;
 
 public class AzureBlobStorage : IBlobStorage
 {

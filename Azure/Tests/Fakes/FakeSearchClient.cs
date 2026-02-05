@@ -1,21 +1,46 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using AzureFunction.Client;
 
-namespace AzureFunction.Client
+internal sealed class FakeSearchClient : IAiSearchClient
 {
-    internal sealed class FakeSearchClient : ISearchClient
+    public Task StoreVectorAsync(
+            float[] embeddingVector,
+            string chunkText,
+            string source,
+            CancellationToken cancellationToken = default)
     {
-        public Task<IReadOnlyList<string>> SearchByVectorAsync(
-            float[] vector,
-            int k = 5,
-            CancellationToken ct = default)
+       return Task.CompletedTask;
+    }
+
+    public Task<List<SearchDocumentChunk>> SearchByVectorAsync(
+        float[] vector,
+        int k,
+        CancellationToken cancellationToken = default)
+    {
+        var fakeChunks = new List<SearchDocumentChunk>
         {
-            return Task.FromResult<IReadOnlyList<string>>(new[]
+            new SearchDocumentChunk
             {
-            "This is a fake document chunk for testing.",
-            "Another test chunk."
-        });
-        }
+                Id = Guid.NewGuid().ToString(),
+                Content = "Monthly, on the last working day of the month",
+                Embedding = new float[] { 0.12f, -0.54f, 0.89f },
+                Source = "teacher_contract1.txt"
+            },
+            new SearchDocumentChunk
+            {
+                Id = Guid.NewGuid().ToString(),
+                Content = "Each month, on the last working day of the month.",
+                Embedding = new float[] { 0.45f, 0.22f, -0.11f },
+                Source = "teacher_contract2.txt"
+            },
+            new SearchDocumentChunk
+            {
+                Id = Guid.NewGuid().ToString(),
+                Content = "You are salaried on the last thursday of each month.",
+                Embedding = new float[] { -0.33f, 0.78f, 0.05f },
+                Source = "teacher_contract3.txt"
+            }
+        };
+
+        return Task.FromResult(fakeChunks);
     }
 }

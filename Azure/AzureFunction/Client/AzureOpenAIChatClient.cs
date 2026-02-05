@@ -1,10 +1,5 @@
-﻿using Azure;
-using Azure.AI.OpenAI;
-using Microsoft.Extensions.Configuration;
+﻿using Azure.AI.OpenAI;
 using OpenAI.Chat;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace AzureFunction.Client
 {
@@ -15,10 +10,11 @@ namespace AzureFunction.Client
 
         public AzureOpenAIChatClient(
             AzureOpenAIClient client,
-            IConfiguration config)
-        {   
+            string deploymentName
+            )
+        {
             _client = client;
-            _deploymentName = config["OpenAI:DeploymentName"]!;
+            _deploymentName = deploymentName;
         }
 
         public async Task<string> GetAnswerAsync(
@@ -36,8 +32,8 @@ namespace AzureFunction.Client
 
             var options = new ChatCompletionOptions
             {
-                Temperature = 0.0f,      // Lower = more deterministic
-                MaxOutputTokenCount = 512,   // Limit response size
+                // says it's an unsuported parameter
+                //Temperature = 0.0f,            // Lower = more deterministic
             };
 
             var completionResult =
