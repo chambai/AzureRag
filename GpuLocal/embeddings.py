@@ -16,6 +16,10 @@ def get_model():
 
 
 def embed_text(texts: List[str]) -> np.ndarray:
+    print("Embedding texts...")
+    for n, text in enumerate(texts):
+        print(f'test chunk {n+1} of {len(texts)}')
+        print(text)
     model = get_model()
     return model.encode(
         texts,

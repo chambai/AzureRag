@@ -3,8 +3,6 @@ from pydantic import BaseModel
 import uvicorn
 import numpy as np
 
-from .embeddings import embed_text
-
 app = FastAPI(title="Local Embedding Service")
 
 
@@ -29,4 +27,8 @@ def get_embeddings(
 
 
 if __name__ == "__main__":
+    from embeddings import embed_text
     uvicorn.run(app, host="0.0.0.0", port=8000)
+else:
+    # (for unit testing)
+    from .embeddings import embed_text
