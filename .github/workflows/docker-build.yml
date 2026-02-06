@@ -158,7 +158,7 @@ jobs:
       - name: Login to GHCR
         shell: cmd
         run: |
-          echo %GHCR_PAT% | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Pull & run AzureFunction container
         run: |
