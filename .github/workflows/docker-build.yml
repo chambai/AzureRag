@@ -1,5 +1,9 @@
 name: Build, Push, Deploy and Test
 
+permissions:
+  contents: read
+  packages: read
+
 on:
   workflow_dispatch:
   push:
@@ -154,7 +158,7 @@ jobs:
       - name: Login to GHCR
         shell: cmd
         run: |
-          echo %GITHUB_TOKEN% | docker login ghcr.io -u %GITHUB_ACTOR% --password-stdin
+          echo %GHCR_PAT% | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Pull & run AzureFunction container
         run: |
