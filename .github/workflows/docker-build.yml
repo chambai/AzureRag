@@ -161,13 +161,14 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Pull & run AzureFunction container
+        shell: cmd
         run: |
           docker pull ghcr.io/${{ github.repository_owner }}/azurefunction:latest
-          docker stop azurefunction || true
-          docker rm azurefunction || true
-          docker run -d \
-            --name azurefunction \
-            -p 8080:80 \
+          docker stop azurefunction >nul 2>&1
+          docker rm azurefunction >nul 2>&1
+          docker run -d ^
+            --name azurefunction ^
+            -p 8080:80 ^
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
 
   # Deploy — GpuLocal (machine-b)
