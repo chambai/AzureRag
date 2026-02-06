@@ -152,6 +152,7 @@ jobs:
 
     steps:
       - name: Login to GHCR
+        shell: bash
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
             -u ${{ github.actor }} \
