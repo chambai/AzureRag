@@ -208,6 +208,6 @@ jobs:
 
       - name: Run Postman E2E tests
         run: |
-          newman run postman/AzureRag_E2E.json \
-            --env-var "AZUREFUNCTION=http://machine-b:8000" \
-            --env-var "GPULOCAL=http://machine-b:8080"
+          newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
+            --env-var "AZUREFUNCTION=http://localhost:8000" \
+            --env-var "GPULOCAL=http://localhost:8080"
