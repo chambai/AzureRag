@@ -168,7 +168,7 @@ jobs:
           docker rm azurefunction || true
           docker run -d \
             --name azurefunction \
-            -p 8080:80 \
+            -p 8000:80 \
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
 
 
