@@ -198,7 +198,7 @@ jobs:
   # End-to-End Tests (Postman / Newman)
   e2e-tests:
     needs: [deploy-azurefunction, deploy-gpulocal]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, machine-b]
 
     steps:
       - uses: actions/checkout@v4
@@ -209,5 +209,5 @@ jobs:
       - name: Run Postman E2E tests
         run: |
           newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
-            --env-var "AZUREFUNCTION=http://localhost:9090" \
-            --env-var "GPULOCAL=http://localhost:9000"
+            --env-var "AZUREFUNCTION=http://localhost:8080" \
+            --env-var "GPULOCAL=http://localhost:8000"
