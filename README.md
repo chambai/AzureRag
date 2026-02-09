@@ -4,6 +4,9 @@
 AzureRag is a **multi-service, production-oriented RAG system** built using **Azure OpenAI**, **Azure AI Search**, **C#/.NET** and **Python**.  
 It ingests documents, generates embeddings, performs vector searches, and generates LLM responses specific to the uploaded documents.  With a **fully automated CI/CD pipeline**, this project is intended to demonstrate CI/CD software engineering practices applied to modern LLM systems.
 
+## Overview and Example
+![Class Diagram](Docs/overview.png)
+
 ## Why RAG?
 LLMs alone cannot reliably answer questions regarding:
 - Private documents
@@ -29,25 +32,9 @@ This project implements a RAG pipeline pattern end-to-end using Azure services w
 - End-to-end CI/CD with GitHub Actions
 
 ---
-## High-Level Flow
-### Upload Document
-```mermaid
-graph LR
-    A[Document Upload<br/>Postman -> Azure Function<br/>C#/.NET] --> B[Save Docuemnt<br/>Azure Storage]
-    B --> C[Docuemnt Chunking<br/>C#/.NET]
-    C --> D[Get Embeddings<br/>Local GPU<br/>Python REST Service]
-    D --> E[Store Embedding Vectors<br/>Azure AI Search]
-```
-### Query Document
-```mermaid
-graph LR
-    A[Ask Question<br/>Postman -> Azure Function<br/>C#/.NET] --> B[Docuemnt<br/>Chunking<br/>C#/.NET]
-    B --> C[Get Question Embedding<br/>Python REST Service<br/>Local GPU]
-    C --> D[Vector Search<br/>Returns Top Chunks<br/>Azure AI Search]
-    D --> E[Build LLM Prompt<br/>C#/.NET]
-    E --> F[Ask LLM<br/>gpt-5-mini<br/>Azure OpenAI]
-    F --> G[LLM Answer from<br/>private document only]
-```
+## Sequence Diagram
+![Class Diagram](Docs/sequence.png)
+
 ---
 ## Project Design Overview
 `AzureRag` is designed with testability, DI (Dependency Injection), and containerized deployment in mind.
