@@ -7,62 +7,70 @@
     "_collection_link": "https://go.postman.co/collection/51737291-3373073f-0ad0-4f6d-b1df-0ab1a6d6b12d?source=collection_link"
   },
   "item": [
-    "name": "Upload Doc Success",
+    {
+      "name": "Upload Doc Success",
+      "request": {
+        "method": "POST",
+        "header": "header": [
+        {
+          "key": "X-Filename",
+          "value": "test_upload.txt",
+          "type": "text"
+        }
+      ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "E2E_Tests/files/test_upload.txt"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{AZUREFUNCTION}}/api/upload",
+          "host": ["{{AZUREFUNCTION}}"],
+          "path": ["api", "upload"]
+        }
+    },
+    "response": []
+  },
+  {
+    "name": "Ask a Question: Secondary Employment",
     "request": {
-      "method": "POST",
-      "header": [],
-      "body": {
-        "mode": "formdata",
-        "formdata": [
+      "method": "GET",
+      "url": {
+        "raw": "{{AZUREFUNCTION}}/api/query?question=Am%20I%20allowed%20secondary%20employment",
+        "host": ["{{AZUREFUNCTION}}"],
+        "path": ["api", "query"],
+        "query": [
           {
-            "key": "file",
-            "type": "file",
-            "src": "E2E_Tests/files/test_upload.txt"
+            "key": "q",
+            "value": "Am I allowed secondary employment"
           }
         ]
-      },
-      "url": {
-        "raw": "{{AZUREFUNCTION}}/api/upload",
-        "host": ["{{AZUREFUNCTION}}"],
-        "path": ["api", "upload"]
       }
+    },
+    "response": []
   },
-  "response": []
-    {
-      "name": "Ask a Question: Secondary Employment",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{AZUREFUNCTION}}/api/query?question=Am%20I%20allowed%20secondary%20employment",
-          "host": ["{{AZUREFUNCTION}}"],
-          "path": ["api", "query"],
-          "query": [
-            {
-              "key": "q",
-              "value": "Am I allowed secondary employment"
-            }
-          ]
-        }
-      },
-      "response": []
+  {
+    "name": "Ask a Question: Payment",
+    "request": {
+      "method": "GET",
+      "url": {
+        "raw": "{{AZUREFUNCTION}}/api/query?question=How%20often%20is%20payment%20and%20what%20happens%20if%20overpaid",
+        "host": ["{{AZUREFUNCTION}}"],
+        "path": ["api", "query"],
+        "query": [
+          {
+            "key": "q",
+            "value": "How often is payment and what happens if overpaid"
+          }
+        ]
+      }
     },
-    {
-      "name": "Ask a Question: Payment",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{AZUREFUNCTION}}/api/query?question=How%20often%20is%20payment%20and%20what%20happens%20if%20overpaid",
-          "host": ["{{AZUREFUNCTION}}"],
-          "path": ["api", "query"],
-          "query": [
-            {
-              "key": "q",
-              "value": "How often is payment and what happens if overpaid"
-            }
-          ]
-        }
-      },
-      "response": []
-    },
+    "response": []
+  },
   ]
 }
