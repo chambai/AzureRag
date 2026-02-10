@@ -6,6 +6,15 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      run_deploy:
+        type: boolean
+        default: false
+        description: "Run deploy jobs"
+      run_e2e:
+        type: boolean
+        default: true
+        description: "Run E2E tests"
   push:
     branches:
       - main
@@ -151,7 +160,12 @@ jobs:
   # Deploy — AzureFunction (machine-a)
   deploy-azurefunction:
     needs: build-azurefunction
-    if: needs.detect-changes.outputs.azurefunction == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.azurefunction == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_deploy == true
     runs-on: [self-hosted, machine-b]
     
     steps:
