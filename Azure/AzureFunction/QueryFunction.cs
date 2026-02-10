@@ -24,7 +24,7 @@ public class QueryFunction
     }
 
     [Function("QueryDocument")]
-    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", Route = "query")] HttpRequestData req, FunctionContext context)
+    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "query")] HttpRequestData req, FunctionContext context)
     {
         // read query parameter
         string question = req.Query["q"];

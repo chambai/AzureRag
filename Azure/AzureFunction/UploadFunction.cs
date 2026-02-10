@@ -30,7 +30,7 @@ public class UploadFunction
 
     [Function("UploadDocument")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "upload")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload")]
         HttpRequestData req, FunctionContext context)
     {
         // Require filename header
@@ -45,7 +45,7 @@ public class UploadFunction
             return await BadRequest(req, "Invalid filename.");
         }
 
-        if (req.Body == null || req.Body.Length == 0)
+        if (req.Body == null)
         {
             return await BadRequest(req, "No document provided.");
         }
