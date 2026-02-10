@@ -7,6 +7,14 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
+      run_unit_tests:
+        type: boolean
+        default: false
+        description: "Run unit tests"
+      run_build:
+        type: boolean
+        default: false
+        description: "Run build jobs"
       run_deploy:
         type: boolean
         default: false
@@ -46,7 +54,12 @@ jobs:
   # Unit Tests — AzureFunction (C# / xUnit)
   unit-tests-azurefunction:
     needs: detect-changes
-    if: needs.detect-changes.outputs.azurefunction == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.azurefunction == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_unit_tests == true
     runs-on: ubuntu-latest
 
     steps:
@@ -70,7 +83,12 @@ jobs:
   # Unit Tests — GpuLocal (Python / pytest)
   unit-tests-gpulocal:
     needs: detect-changes
-    if: needs.detect-changes.outputs.gpulocal == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.gpulocal == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_unit_tests == true
     runs-on: ubuntu-latest
 
     steps:
@@ -101,7 +119,12 @@ jobs:
   # Build & Push — AzureFunction
   build-azurefunction:
     needs: unit-tests-azurefunction
-    if: needs.detect-changes.outputs.azurefunction == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.azurefunction == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_build == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -130,7 +153,12 @@ jobs:
   # Build & Push — GpuLocal
   build-gpulocal:
     needs: unit-tests-gpulocal
-    if: needs.detect-changes.outputs.gpulocal == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.gpulocal == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_build == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -199,7 +227,12 @@ jobs:
   # Deploy — GpuLocal (machine-b)
   deploy-gpulocal:
     needs: build-gpulocal
-    if: needs.detect-changes.outputs.gpulocal == 'true'
+    if: |
+        github.event_name == 'push' &&
+        needs.detect-changes.outputs.gpulocal == 'true'
+        ||
+        github.event_name == 'workflow_dispatch' &&
+        inputs.run_deploy == true
     runs-on: [self-hosted, machine-b]
 
     steps:
