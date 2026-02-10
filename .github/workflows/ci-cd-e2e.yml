@@ -211,7 +211,7 @@ jobs:
   # End-to-End Tests (Postman / Newman)
   e2e-tests:
     needs: [deploy-azurefunction, deploy-gpulocal]
-      if: >
+    if: >
         always() &&
         (
           needs.deploy-azurefunction.result == 'success' ||
