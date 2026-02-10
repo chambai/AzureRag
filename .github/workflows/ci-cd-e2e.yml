@@ -258,8 +258,20 @@ jobs:
   # End-to-End Tests (Postman / Newman)
   e2e-tests:
     needs: [deploy-azurefunction, deploy-gpulocal]
-    if: >
+    if: |
         always() &&
+        (
+          (
+            github.event_name == 'push' &&
+            needs.detect-changes.outputs.gpulocal == 'true'
+          )
+          ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            inputs.run_deploy == true
+          )
+        )
+        &&
         (
           needs.deploy-azurefunction.result == 'success' ||
           needs.deploy-gpulocal.result == 'success'
