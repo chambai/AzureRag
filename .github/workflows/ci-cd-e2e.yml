@@ -1,5 +1,9 @@
 name: Build, Push, Deploy and Test
 
+permissions:
+  contents: read
+  packages: read
+
 on:
   workflow_dispatch:
   push:
@@ -148,24 +152,35 @@ jobs:
   deploy-azurefunction:
     needs: build-azurefunction
     if: needs.detect-changes.outputs.azurefunction == 'true'
-    runs-on: [self-hosted, machine-a]
-
+    runs-on: [self-hosted, machine-b]
+    
     steps:
+      - name: Create Docker network
+        run: docker network inspect azurerag-net >/dev/null 2>&1 || docker network create azurerag-net
+
+      - name: Ensure Docker network exists
+        run: |
+          docker network inspect azurerag-net || true \
+          docker network create azurerag-net
+  
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
             -u ${{ github.actor }} \
             --password-stdin
 
-      - name: Pull & run AzureFunction container
+      - name: Pull & run GpuLocal container
         run: |
           docker pull ghcr.io/${{ github.repository_owner }}/azurefunction:latest
           docker stop azurefunction || true
           docker rm azurefunction || true
           docker run -d \
             --name azurefunction \
+            --network azurerag-net \
             -p 8080:80 \
+            -e Gpu__LocalEmbeddingUrl=http://gpulocal:80/embed \
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
+
 
   # Deploy — GpuLocal (machine-b)
   deploy-gpulocal:
@@ -174,6 +189,9 @@ jobs:
     runs-on: [self-hosted, machine-b]
 
     steps:
+      - name: Create Docker network
+        run: docker network inspect azurerag-net >/dev/null 2>&1 || docker network create azurerag-net
+        
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -187,22 +205,21 @@ jobs:
           docker rm gpulocal || true
           docker run -d \
             --name gpulocal \
-            -p 8080:80 \
+            --network azurerag-net \
             ghcr.io/${{ github.repository_owner }}/gpulocal:latest
 
   # End-to-End Tests (Postman / Newman)
   e2e-tests:
     needs: [deploy-azurefunction, deploy-gpulocal]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, machine-b]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Newman
-        run: npm install -g newman
+        run: npm install newman
 
       - name: Run Postman E2E tests
         run: |
-          newman run postman/e2e_collection.json \
-            --env-var "AZUREFUNCTION=http://machine-a:8080" \
-            --env-var "GPULOCAL=http://machine-b:8080"
+          npx newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
+            --env-var "AZUREFUNCTION=http://localhost:8080" \
