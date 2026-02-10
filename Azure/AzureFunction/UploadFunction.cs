@@ -45,7 +45,7 @@ public class UploadFunction
             return await BadRequest(req, "Invalid filename.");
         }
 
-        if (req.Body == null)
+        if (req.Body == null || req.Body.Length == 0)
         {
             return await BadRequest(req, "No document provided.");
         }
