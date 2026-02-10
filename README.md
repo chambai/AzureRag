@@ -57,5 +57,6 @@ Software Engineering Considerations:
 - Hybrid search (vector + keyword)
 - Observability and telemetry integration
 - Fine-tuned LLM
+- Azure Function Authorization
 ---
 
