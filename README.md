@@ -1,8 +1,8 @@
-# AzureRag
-**Retrieval-Augmented Generation (RAG) using Azure and local GPU**
+# AzureRag:
+### C#/.NET, Azure, LLM, Python, CI/CD, E2E Tests
+This project allows users to query documents they have uploaded. It includes a lightweight AI component to illustrate real-world integration, with the primary focus on production-grade engineering rather than deep AI development. 
 
-AzureRag is a **multi-service, production-oriented RAG system** built using **Azure OpenAI**, **Azure AI Search**, **C#/.NET** and **Python**.  
-It ingests documents, generates embeddings, performs vector searches, and generates LLM responses specific to the uploaded documents.  With a **fully automated CI/CD pipeline**, this project is intended to demonstrate CI/CD software engineering practices applied to modern LLM systems.
+It is a **multi-service, production-oriented RAG (Retrieval-Augmented Generation) system** with scalable C# services and APIs for data ingestion, processing, and LLM model serving in a cloud environment.  It also demonstrates a **fully automated CI/CD pipeline** with **E2E (End-to-End) tests**.  The technologies used are: **C#/.NET, Python, Azure, GitHub** and **Postman**. 
 
 ## Overview and Example
 ![Class Diagram](Docs/overview.png)
