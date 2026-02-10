@@ -173,7 +173,7 @@ jobs:
             --name azurefunction \
             --network azurerag-net \
             -p 8080:80 \
-            -e GPULOCAL_BASE_URL=http://gpulocal:80 \
+            -e Gpu__LocalEmbeddingUrl=http://gpulocal:80/embed \
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
 
 
