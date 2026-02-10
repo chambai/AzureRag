@@ -11,7 +11,17 @@
       "name": "Ask a Question: Secondary Employment",
       "request": {
         "method": "GET",
-        "header": []
+        "url": {
+          "raw": "{{AZUREFUNCTION}}/api/query?question=Am%20I%20allowed%20secondary%20employment",
+          "host": ["{{AZUREFUNCTION}}"],
+          "path": ["api", "query"],
+          "query": [
+            {
+              "key": "q",
+              "value": "Am I allowed secondary employment"
+            }
+      ]
+    }
       },
       "response": []
     },
