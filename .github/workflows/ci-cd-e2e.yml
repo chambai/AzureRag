@@ -211,6 +211,12 @@ jobs:
   # End-to-End Tests (Postman / Newman)
   e2e-tests:
     needs: [deploy-azurefunction, deploy-gpulocal]
+      if: >
+        always() &&
+        (
+          needs.deploy-azurefunction.result == 'success' ||
+          needs.deploy-gpulocal.result == 'success'
+        )
     runs-on: [self-hosted, machine-b]
 
     steps:
