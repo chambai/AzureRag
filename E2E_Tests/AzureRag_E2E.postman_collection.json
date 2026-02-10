@@ -11,7 +11,7 @@
       "name": "Upload Doc Success",
       "request": {
         "method": "POST",
-        "header": "header": [
+        "header": [
         {
           "key": "X-Filename",
           "value": "test_upload.txt",
