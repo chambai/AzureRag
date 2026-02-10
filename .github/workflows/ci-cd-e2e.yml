@@ -262,19 +262,14 @@ jobs:
         always() &&
         (
           (
-            github.event_name == 'push' &&
-            needs.detect-changes.outputs.gpulocal == 'true'
+            needs.deploy-azurefunction.result == 'success' ||
+            needs.deploy-gpulocal.result == 'success'
           )
           ||
           (
             github.event_name == 'workflow_dispatch' &&
-            inputs.run_deploy == true
+            inputs.run_e2e == true
           )
-        )
-        &&
-        (
-          needs.deploy-azurefunction.result == 'success' ||
-          needs.deploy-gpulocal.result == 'success'
         )
     runs-on: [self-hosted, machine-b]
 
