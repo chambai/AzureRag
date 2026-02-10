@@ -156,7 +156,12 @@ jobs:
     
     steps:
       - name: Create Docker network
-        run: docker network create azurerag-net || true
+        run: docker network inspect azurerag-net >/dev/null 2>&1 || docker network create azurerag-net
+
+      - name: Ensure Docker network exists
+        run: |
+          docker network inspect azurerag-net || true \
+          docker network create azurerag-net
   
       - name: Login to GHCR
         run: |
@@ -185,7 +190,7 @@ jobs:
 
     steps:
       - name: Create Docker network
-        run: docker network create azurerag-net || true
+        run: docker network inspect azurerag-net >/dev/null 2>&1 || docker network create azurerag-net
         
       - name: Login to GHCR
         run: |
