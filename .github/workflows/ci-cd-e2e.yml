@@ -155,6 +155,9 @@ jobs:
     runs-on: [self-hosted, machine-b]
     
     steps:
+      - name: Create Docker network
+        run: docker network create azurerag-net || true
+  
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -168,7 +171,9 @@ jobs:
           docker rm azurefunction || true
           docker run -d \
             --name azurefunction \
-            -p 8000:80 \
+            --network azurerag-net \
+            -p 8080:80 \
+            -e GPULOCAL_BASE_URL=http://gpulocal:80 \
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
 
 
@@ -179,6 +184,9 @@ jobs:
     runs-on: [self-hosted, machine-b]
 
     steps:
+      - name: Create Docker network
+        run: docker network create azurerag-net || true
+        
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -192,7 +200,8 @@ jobs:
           docker rm gpulocal || true
           docker run -d \
             --name gpulocal \
-            -p 8080:80 \
+            --network azurerag-net \
+            --gpus all \
             ghcr.io/${{ github.repository_owner }}/gpulocal:latest
 
   # End-to-End Tests (Postman / Newman)
@@ -210,4 +219,3 @@ jobs:
         run: |
           npx newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
             --env-var "AZUREFUNCTION=http://localhost:8080" \
-            --env-var "GPULOCAL=http://localhost:8000"
