@@ -62,7 +62,7 @@ namespace Tests
 
             // Get the boundary-encoded stream and headers
             var bodyStream = await multipartContent.ReadAsStreamAsync();
-            var contentType = multipartContent.Headers.ContentType.ToString();
+            var contentType = multipartContent.Headers.ContentType?.ToString();
 
             // 4. Create your test request
             var request = new TestHttpRequestData(
