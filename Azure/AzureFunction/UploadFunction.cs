@@ -1,17 +1,14 @@
-﻿using Azure.Search.Documents;
-using Azure.Storage.Blobs;
-using AzureFunction.Client;
+﻿using AzureFunction.Client;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
-using System.Text.Json;
 using HttpMultipartParser;
 
 public class UploadFunction
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<UploadFunction> _logger;
     private readonly IBlobStorage _blobServiceClient;
     private readonly IEmbeddingClient _embeddingClient;
     private readonly IAiSearchClient _searchClient;
@@ -30,82 +27,162 @@ public class UploadFunction
 
     [Function("UploadDocument")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload")]
-        HttpRequestData req, FunctionContext context)
+    [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "upload")]
+    HttpRequestData req,
+    FunctionContext context)
     {
-        // Require filename header
-        if (!req.Headers.TryGetValues("X-Filename", out var filenames))
+        try
         {
-            return await BadRequest(req, "Missing X-Filename header.");
+            var validationResult = ValidateRequest(req);
+            if (!validationResult.IsValid)
+                return await CreateBadRequest(req, validationResult.ErrorMessage!);
+
+            var fileName = validationResult.FileName!;
+
+            MemoryStream? fileStream;
+            try
+            {
+                fileStream = await ExtractFileStreamAsync(req);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse multipart request.");
+                return await CreateBadRequest(req, "Invalid multipart request.");
+            }
+
+            if (fileStream == null)
+                return await CreateBadRequest(req, "No document provided.");
+
+            await UploadToBlobAsync(fileName, fileStream);
+
+            string text = await ExtractTextAsync(fileStream);
+            var chunks = SplitIntoChunks(text);
+
+            await ProcessChunksAsync(
+                chunks,
+                fileName,
+                context.CancellationToken);
+
+            return await CreateOk(req,
+                "Document uploaded and embedding process triggered.");
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Upload cancelled.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Upload failed.");
+            var resp = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await resp.WriteStringAsync("An unexpected error occurred.");
+            return resp;
+        }
+    }
+
+
+    // Validation
+    public (bool IsValid, string? FileName, string? ErrorMessage)
+        ValidateRequest(HttpRequestData req)
+    {
+        if (!req.Headers.TryGetValues("X-Filename", out var filenames))
+            return (false, null, "Missing X-Filename header.");
 
         var fileName = filenames.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return await BadRequest(req, "Invalid filename.");
-        }
+            return (false, null, "Invalid filename.");
 
         if (req.Body == null || req.Body.Length == 0)
-        {
-            return await BadRequest(req, "No document provided.");
-        }
+            return (false, null, "No document provided.");
 
-        // Parse the stream
+        return (true, fileName, null);
+    }
+
+
+    // Multipart extraction
+    internal async Task<MemoryStream?> ExtractFileStreamAsync(
+        HttpRequestData req)
+    {
         var parser = await MultipartFormDataParser.ParseAsync(req.Body);
 
-        // Get the file(s)
         var file = parser.Files.FirstOrDefault();
-
         if (file == null)
-        {
-            return await BadRequest(req, "No document provided.");
-        }
+            return null;
 
-        using var ms = new MemoryStream();
+        var ms = new MemoryStream();
         await file.Data.CopyToAsync(ms);
 
         if (ms.Length == 0)
-        {
-            return await BadRequest(req, "No document provided.");
-        }
-
-        // reset memory position to zero
-        ms.Position = 0;
-
-        // Upload to Blob Storage
-        await _blobServiceClient.UploadAsync("documents", fileName, ms);
+            return null;
 
         ms.Position = 0;
-
-        // Read text
-        string text;
-        using (var reader = new StreamReader(ms, Encoding.UTF8, leaveOpen: true))
-        {
-            text = await reader.ReadToEndAsync();
-        }
-
-        // Chunk text
-        var chunks = Utilities.SplitIntoChunks(text);
-
-        // Send chunks for embeddings
-        foreach (var chunk in chunks)
-        {
-            var embedding = await _embeddingClient.GetEmbeddingAsync(chunk);
-            // store the embedding vector
-            await _searchClient.StoreVectorAsync(embedding, chunk, fileName, context.CancellationToken);
-        }
-
-        var resp = req.CreateResponse(HttpStatusCode.OK);
-        await resp.WriteStringAsync("Document uploaded and embedding process triggered.");
-        return resp;
+        return ms;
     }
 
-    private static async Task<HttpResponseData> BadRequest(HttpRequestData req, string message)
+    // blob upload
+    internal async Task UploadToBlobAsync(
+        string fileName,
+        MemoryStream stream)
+    {
+        stream.Position = 0;
+        await _blobServiceClient.UploadAsync(
+            "documents",
+            fileName,
+            stream);
+    }
+
+    // Text extraction
+
+    internal async Task<string> ExtractTextAsync(
+        MemoryStream stream)
+    {
+        stream.Position = 0;
+
+        using var reader =
+            new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+
+        return await reader.ReadToEndAsync();
+    }
+
+    // chunking
+    internal IEnumerable<string> SplitIntoChunks(string text)
+        => Utilities.SplitIntoChunks(text);
+
+    // embedding and indexing
+    public async Task ProcessChunksAsync(
+        IEnumerable<string> chunks,
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        foreach (var chunk in chunks)
+        {
+            var embedding =
+                await _embeddingClient.GetEmbeddingAsync(chunk);
+
+            await _searchClient.StoreVectorAsync(
+                embedding,
+                chunk,
+                fileName,
+                cancellationToken);
+        }
+    }
+
+    // Reponse helpers
+    private static async Task<HttpResponseData> CreateBadRequest(
+        HttpRequestData req,
+        string message)
     {
         var resp = req.CreateResponse(HttpStatusCode.BadRequest);
         await resp.WriteStringAsync(message);
         return resp;
     }
 
-
+    private static async Task<HttpResponseData> CreateOk(
+        HttpRequestData req,
+        string message)
+    {
+        var resp = req.CreateResponse(HttpStatusCode.OK);
+        await resp.WriteStringAsync(message);
+        return resp;
+    }
 }
