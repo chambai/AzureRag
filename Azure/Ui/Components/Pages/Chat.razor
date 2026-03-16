@@ -1,0 +1,165 @@
+﻿@page "/"
+@inject IJSRuntime JSRuntime
+@layout Shared.MainLayout
+@inject Services.RagApiClient Api
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+
+    <!-- ERROR DISPLAY -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="my-4" ShowCloseIcon="true" CloseIconClicked="(() => errorMessage = null)">
+            @errorMessage
+        </MudAlert>
+    }
+
+    <!-- CHAT SECTION -->
+    <MudText Typo="Typo.h5" Class="mb-2">Ask your documents</MudText>
+    <div @ref="scrollTarget" style="height:400px; overflow-y:auto">
+        <MudPaper Class="pa-4">
+                @foreach (var msg in messages)
+                {
+                    @if (msg.StartsWith("You:"))
+                    {
+                        <MudText Style="color: yellow; font-weight: bold;">@msg</MudText>
+                    }
+                    else
+                    {
+                        <MudText>@msg</MudText>
+                    }
+                }
+        </MudPaper>
+    </div>
+
+    <MudStack Row="true" Class="mb-6">
+        <MudTextField @bind-Value="question" Placeholder="Ask something..." Class="flex-grow-1" Immediate="true" OnKeyDown="HandleKeyDown" />
+        <MudButton OnClick="Ask" Variant="Variant.Filled" Color="Color.Primary">Ask</MudButton>
+    </MudStack>
+
+    <!-- UPLOAD SECTION -->
+    <MudDivider Class="mb-4" />
+    <MudText Typo="Typo.h5" Class="mb-2">Upload Documents</MudText>
+    <MudPaper Class="pa-6 mb-6">
+        <MudButton Variant="Variant.Filled" Component="label" HtmlTag="label" Color="Color.Secondary">
+            Upload files
+            <InputFile OnChange="UploadFiles" multiple hidden />
+        </MudButton>
+
+        @if (uploading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-2" />
+            <MudText>Processing document...</MudText>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(status))
+        {
+            <MudText Color="Color.Success">@status</MudText>
+        }
+    </MudPaper>
+
+    <!-- DOCUMENT LIBRARY -->
+    <MudDivider Class="mb-4" />
+    <MudText Typo="Typo.h5" Class="mb-2">Document Library</MudText>
+    <MudTable Items="documents">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Uploaded</MudTh>
+            <MudTh>Status</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Date</MudTd>
+            <MudTd><MudChip T="string" Color="Color.Success">Indexed</MudChip></MudTd>
+        </RowTemplate>
+    </MudTable>
+
+</MudContainer>
+
+@code {
+    string? errorMessage;
+
+    // CHAT
+    string question = string.Empty;
+    List<string> messages = new();
+    private ElementReference scrollTarget;
+
+    private async Task ScrollToBottom()
+    {
+        // Give Blazor 1ms to render the new HTML before we scroll
+        await Task.Delay(1);
+
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", scrollTarget);
+    }
+
+    async Task Ask()
+    {
+        if (string.IsNullOrWhiteSpace(question)) return;
+
+        try
+        {
+            errorMessage = null;
+            messages.Add("You: " + question);
+            await ScrollToBottom();
+
+            var answer = await Api.Ask(question);
+            messages.Add("AI: " + answer);
+            await ScrollToBottom();
+            question = "";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Chat Error: {ex.Message}";
+        }
+    }
+
+    async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        // Check if the key is "Enter"
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+        {
+            await Ask();
+        }
+    }
+
+    // UPLOAD
+    bool uploading;
+    string status = "";
+
+    async Task UploadFiles(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            errorMessage = null;
+            uploading = true;
+            var msg = "";
+            status = "";
+            StateHasChanged();
+
+            foreach (var file in e.GetMultipleFiles())
+            {
+                // Note: OpenReadStream has a default max size of 512KB.
+                // Using 50MB as per your original code.
+                using var stream = file.OpenReadStream(50_000_000);
+                msg = await Api.Upload(stream, file.Name);
+
+                documents.Add(new Document { Name = file.Name, Date = DateTime.Now });
+            }
+
+            status = $"Upload complete, {msg}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            uploading = false;
+        }
+    }
+
+    // DOCUMENTS
+    List<Document> documents = new();
+    class Document { public string? Name { get; set; } public DateTime Date { get; set; } }
+}

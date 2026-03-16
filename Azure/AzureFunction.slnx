@@ -4,4 +4,5 @@
   </Folder>
   <Project Path="AzureFunction/AzureFunction.csproj" />
   <Project Path="Tests/Tests.csproj" />
+  <Project Path="Ui/Ui.csproj" Id="a9a39ef0-b158-4af4-aee5-dfbdaa29c3e5" />
 </Solution>

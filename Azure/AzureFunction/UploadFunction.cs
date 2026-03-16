@@ -1,10 +1,11 @@
 ﻿using AzureFunction.Client;
+using HttpMultipartParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text;
-using HttpMultipartParser;
+using static System.Net.WebRequestMethods;
 
 public class UploadFunction
 {
@@ -64,7 +65,7 @@ public class UploadFunction
                 context.CancellationToken);
 
             return await CreateOk(req,
-                "Document uploaded and embedding process triggered.");
+                $"Document {fileName} uploaded.");
         }
         catch (OperationCanceledException)
         {
@@ -75,7 +76,7 @@ public class UploadFunction
         {
             _logger.LogError(ex, "Upload failed.");
             var resp = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await resp.WriteStringAsync("An unexpected error occurred.");
+            await resp.WriteStringAsync(ex.Message);
             return resp;
         }
     }
@@ -92,7 +93,7 @@ public class UploadFunction
         if (string.IsNullOrWhiteSpace(fileName))
             return (false, null, "Invalid filename.");
 
-        if (req.Body == null || req.Body.Length == 0)
+        if (req.Body == null)
             return (false, null, "No document provided.");
 
         return (true, fileName, null);

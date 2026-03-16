@@ -51,7 +51,7 @@ public class QueryFunction
         {
             _logger.LogError(ex, "Unhandled exception.");
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
-            await response.WriteStringAsync("An unexpected error occurred.");
+            await response.WriteStringAsync(ex.Message);
             return response;
         }
     }
