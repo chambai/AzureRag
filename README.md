@@ -4,7 +4,7 @@ This project allows users to query documents they have uploaded. It includes a l
 
 It is a **multi-service, production-oriented RAG (Retrieval-Augmented Generation) system** with scalable C# services and APIs for data ingestion, processing, and LLM (Large Language Model) serving in a cloud environment.  It also demonstrates a **fully automated CI/CD pipeline** with **E2E (End-to-End) tests** using **C#/.NET, Python, Azure, GitHub** and **Postman**. 
 
-[![Demo Video](Docs/overview.png)](Docs/demo_video.mp4)
+[![Demo Video](Docs/demo_video.gif)](Docs/demo_video.mp4)
 
 ## Overview and Example
 ![Class Diagram](Docs/overview.png)
