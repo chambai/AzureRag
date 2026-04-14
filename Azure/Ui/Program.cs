@@ -12,6 +12,8 @@ builder.Services.AddHttpClient<RagApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["RagApiBaseUrl"]!);
 });
 
+builder.Services.AddSingleton<AzureMetricsService>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

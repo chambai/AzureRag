@@ -1,0 +1,56 @@
+﻿@page "/dashboard"
+@inject Services.AzureMetricsService Metrics
+@layout Shared.MainLayout
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+
+    <!-- ERROR DISPLAY -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="my-4" ShowCloseIcon="true" CloseIconClicked="(() => errorMessage = null)">
+            @errorMessage
+        </MudAlert>
+    }
+
+    <MudGrid>
+
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardContent>
+
+                    <MudText Typo="Typo.h6">
+                        CPU Usage
+                    </MudText>
+
+                    <MudText Typo="Typo.h3">
+                        @cpu %
+                    </MudText>
+
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+    </MudGrid>
+</MudContainer>
+
+@code {
+    string? errorMessage;
+    double? cpu;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            errorMessage = null;
+            cpu = await Metrics.GetCpuMetric();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Chat Error: {ex.Message}";
+        }
+    }
+
+}
+

@@ -100,6 +100,7 @@
         try
         {
             errorMessage = null;
+            messages.Add("");
             messages.Add("You: " + question);
             await ScrollToBottom();
 
@@ -147,7 +148,7 @@
                 documents.Add(new Document { Name = file.Name, Date = DateTime.Now });
             }
 
-            status = $"Upload complete, {msg}";
+            status = msg;
         }
         catch (Exception ex)
         {

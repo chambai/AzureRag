@@ -1,2 +1,27 @@
-# Visual Studio 2015 cache/options directory
+# Visual Studio cache/options directory
 .vs/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docuser
+
+# Build logs
+*.log
+msbuild*.wrn
+msbuild*.err
