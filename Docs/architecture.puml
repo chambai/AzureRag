@@ -1,0 +1,69 @@
+@startuml AzureRag_Architecture
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+skinparam defaultFontSize 11
+
+title AzureRag - System Architecture
+
+actor "User" as user
+
+package "Frontend" {
+    [Blazor Server UI\n(MudBlazor)] as ui
+}
+
+package "Backend - Azure Function (.NET 8)" {
+    [UploadFunction\n/upload] as upload
+    [QueryFunction\n/query] as query
+}
+
+package "Local Infrastructure" {
+    [GPU Embedding Service\n(Python / FastAPI)\nall-mpnet-base-v2\nPort 9000] as gpu
+}
+
+cloud "Azure Cloud" {
+    database "Azure Blob Storage\n(Raw Documents)" as blob
+    database "Azure AI Search\n(HNSW Vector Index\n768 dimensions)" as search
+    [Azure OpenAI\nGPT-4-mini] as openai
+    [Application Insights\n(Telemetry)] as appinsights
+}
+
+cloud "CI/CD" {
+    [GitHub Actions] as gha
+    [GitHub Container\nRegistry (GHCR)] as ghcr
+    [Self-Hosted Runner\n(machine-b)] as runner
+    [Newman / Postman\n(E2E Tests)] as newman
+}
+
+' User interactions
+user --> ui : Browse / Upload / Ask
+
+' UI to Backend
+ui --> upload : POST /upload\n(multipart + X-Filename)
+ui --> query : GET /query?q=...
+
+' Upload pipeline
+upload --> blob : Store raw document
+upload --> gpu : Embed each chunk\nPOST /embed
+upload --> search : Store chunk +\nembedding vector
+
+' Query pipeline
+query --> gpu : Embed question\nPOST /embed
+query --> search : Vector similarity\nsearch (top k=5)
+query --> openai : Generate answer\n(chunks + question)
+
+' Telemetry
+upload ..> appinsights : Logs / Metrics
+query ..> appinsights : Logs / Metrics
+
+' CI/CD flow
+gha --> ghcr : Push Docker images
+gha --> runner : Deploy containers
+runner --> newman : Run E2E tests
+
+' Docker networking
+note bottom of gpu
+  Docker network: azurerag-net
+  Resolved as http://gpulocal:80/embed
+end note
+
+@enduml

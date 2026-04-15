@@ -1,0 +1,126 @@
+@startuml AzureRag_Sequence
+skinparam backgroundColor white
+skinparam defaultFontSize 11
+skinparam sequenceMessageAlign center
+
+title AzureRag - Sequence Diagrams
+
+== Document Upload Flow ==
+
+actor User
+participant "Blazor UI\n(Chat.razor)" as UI
+participant "RagApiClient" as RAG
+participant "UploadFunction\n(Azure Function)" as Upload
+participant "Azure Blob\nStorage" as Blob
+participant "Utilities\n(TextChunker)" as Chunker
+participant "GPU Service\n(FastAPI)" as GPU
+participant "Azure AI\nSearch" as Search
+
+User -> UI : Select file & click Upload
+UI -> RAG : Upload(fileStream, fileName)
+RAG -> Upload : POST /upload\n(multipart body + X-Filename header)
+
+Upload -> Upload : ValidateRequest(req)
+alt Missing X-Filename or empty body
+    Upload --> RAG : 400 Bad Request
+    RAG --> UI : Error message
+    UI --> User : Display error
+end
+
+Upload -> Upload : ExtractFileStreamAsync(req)
+Upload -> Blob : UploadAsync("documents", fileName, stream)
+Blob --> Upload : OK
+
+Upload -> Upload : ExtractTextAsync(stream)
+Upload -> Chunker : SplitIntoChunks(text, maxTokens=700, overlap=100)
+Chunker --> Upload : List<string> chunks
+
+loop For each chunk
+    Upload -> GPU : POST /embed\n{"texts": [chunkText]}
+    GPU -> GPU : embed_text(texts)\nall-mpnet-base-v2 (CUDA)
+    GPU --> Upload : {"vectors": [[768 floats]]}
+
+    Upload -> Search : StoreVectorAsync(embedding, chunkText, fileName)
+    Search --> Upload : OK
+end
+
+Upload --> RAG : 200 OK "File uploaded"
+RAG --> UI : Success message
+UI --> User : Display confirmation
+
+== Document Query Flow ==
+
+User -> UI : Type question & press Ask
+UI -> RAG : Ask(question)
+RAG -> Upload : GET /query?q={question}
+
+note over Upload : Actually handled by\nQueryFunction
+
+participant "QueryFunction\n(Azure Function)" as Query
+
+RAG -> Query : GET /query?q={question}
+
+Query -> Query : ExtractQuestion(req)
+alt Missing or empty query
+    Query --> RAG : 400 Bad Request
+    RAG --> UI : Error message
+    UI --> User : Display error
+end
+
+Query -> GPU : POST /embed\n{"texts": [question]}
+GPU -> GPU : embed_text(texts)\nall-mpnet-base-v2 (CUDA)
+GPU --> Query : {"vectors": [[768 floats]]}
+
+Query -> Search : SearchByVectorAsync(vector, k=5)
+Search -> Search : HNSW approximate\nnearest neighbour search
+Search --> Query : List<SearchDocumentChunk>\n(top 5 chunks)
+
+participant "Azure OpenAI\nGPT-4-mini" as LLM
+
+Query -> Query : BuildPrompt(question, chunks)
+note right of Query
+    System: "You are a helpful assistant."
+    User: "Answer using ONLY the
+    information below:
+
+    [chunk 1]...[chunk 5]
+
+    Question: {question}"
+end note
+
+Query -> LLM : ChatCompletion request\n(system + user messages)
+LLM --> Query : Generated answer
+
+Query --> RAG : 200 OK (answer text)
+RAG --> UI : Answer string
+UI --> User : Display answer in chat
+
+== CI/CD Pipeline Flow ==
+
+participant "Developer" as Dev
+participant "GitHub\nActions" as GHA
+participant "GHCR" as GHCR
+participant "Self-Hosted\nRunner" as Runner
+participant "Newman\n(Postman)" as Newman
+
+Dev -> GHA : Push to main\n(or manual dispatch)
+GHA -> GHA : detect-changes\n(dorny/paths-filter)
+
+par Azure Function Pipeline
+    GHA -> GHA : dotnet test\n(xUnit + Moq)
+    GHA -> GHCR : Docker build & push\nazurefunction:latest
+    GHA -> Runner : docker pull & run\nport 8080, azurerag-net
+else GPU Local Pipeline
+    GHA -> GHA : pytest\n(CPU mode, mocked model)
+    GHA -> GHCR : Docker build & push\ngpulocal:latest
+    GHA -> Runner : docker pull & run\nazurerag-net (internal only)
+end
+
+GHA -> Newman : Run E2E collection
+Newman -> Runner : POST /upload (test document)
+Runner --> Newman : 200 OK
+Newman -> Runner : GET /query?q=test question
+Runner --> Newman : 200 OK (answer)
+Newman --> GHA : Test results (pass/fail)
+
+@enduml

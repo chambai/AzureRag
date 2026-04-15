@@ -1,0 +1,229 @@
+@startuml AzureRag_ClassDiagram
+skinparam backgroundColor white
+skinparam defaultFontSize 9
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam nodesep 20
+skinparam ranksep 30
+
+left to right direction
+
+title AzureRag - Class Diagram
+
+' ==================== COLUMN 1: UI + Functions ====================
+
+together {
+
+package "UI Services" {
+    class RagApiClient {
+        - _http: HttpClient
+        + Ask(question): Task<string>
+        + Upload(fileStream, fileName): Task<string>
+    }
+
+    class AzureMetricsService {
+        - _client: MetricsQueryClient
+        + GetCpuMetric(): Task<double?>
+    }
+}
+
+package "Azure Functions" {
+    class UploadFunction {
+        - _logger: ILogger<UploadFunction>
+        - _blobServiceClient: IBlobStorage
+        - _embeddingClient: IEmbeddingClient
+        - _searchClient: IAiSearchClient
+        + Run(req, context): Task<HttpResponseData>
+        + ValidateRequest(req): (bool, string?, string?)
+        ~ ExtractFileStreamAsync(req): Task<MemoryStream?>
+        ~ UploadToBlobAsync(fileName, stream): Task
+        ~ ExtractTextAsync(stream): Task<string>
+        + ProcessChunksAsync(chunks, fileName, ct): Task
+    }
+
+    class QueryFunction {
+        - _logger: ILogger
+        - _embeddingClient: IEmbeddingClient
+        - _searchClient: IAiSearchClient
+        - _chatClient: IChatCompletionClient
+        + Run(req, context): Task<HttpResponseData>
+        ~ ExtractQuestion(req): string?
+        ~ ProcessQueryAsync(question, ct): Task<string>
+        + BuildPrompt(question, chunks): string
+    }
+
+    class Utilities <<static>> {
+        + {static} SplitIntoChunks(text, maxTokens, overlap): List<string>
+    }
+}
+
+}
+
+' ==================== COLUMN 2: Interfaces ====================
+
+together {
+
+package "Client Interfaces" {
+    interface IClientFactory {
+        + CreateBlobStorageClient(): IBlobStorage
+        + CreateGpuClient(): IEmbeddingClient
+        + CreateAISearchClient(): IAiSearchClient
+        + CreateChatClient(): IChatCompletionClient
+    }
+
+    interface IBlobStorage {
+        + UploadAsync(containerName, blobName, content): Task
+    }
+
+    interface IEmbeddingClient {
+        + GetEmbeddingAsync(text, ct): Task<float[]>
+    }
+
+    interface IAiSearchClient {
+        + StoreVectorAsync(embedding, chunkText, source, ct): Task
+        + SearchByVectorAsync(vector, k, ct): Task<List<SearchDocumentChunk>>
+    }
+
+    interface IChatCompletionClient {
+        + GetAnswerAsync(systemPrompt, userPrompt, ct): Task<string>
+    }
+}
+
+}
+
+' ==================== COLUMN 3: Implementations + Config ====================
+
+together {
+
+package "Client Implementations" {
+    class ClientFactory {
+        - _settings: Settings
+        - _httpClientFactory: IHttpClientFactory
+        + CreateBlobStorageClient(): IBlobStorage
+        + CreateGpuClient(): IEmbeddingClient
+        + CreateAISearchClient(): IAiSearchClient
+        + CreateChatClient(): IChatCompletionClient
+    }
+
+    class AzureBlobStorage {
+        + UploadAsync(containerName, blobName, content): Task
+    }
+
+    class GpuEmbeddingClient <<sealed>> {
+        - _httpClient: HttpClient
+        - _gpuServiceUrl: string
+        + GetEmbeddingAsync(text, ct): Task<float[]>
+    }
+
+    class AzureAISearchClient <<internal>> {
+        - _client: SearchClient
+        + StoreVectorAsync(embedding, chunkText, source, ct): Task
+        + SearchByVectorAsync(queryVector, k, ct): Task<List<SearchDocumentChunk>>
+    }
+
+    class AzureOpenAIChatClient <<sealed>> {
+        - _client: AzureOpenAIClient
+        - _deploymentName: string
+        + GetAnswerAsync(systemPrompt, userPrompt, ct): Task<string>
+    }
+}
+
+package "Models" {
+    class SearchDocumentChunk {
+        + Id: string
+        + Content: string
+        + Embedding: float[]
+        + Source: string
+    }
+
+    class VectorResponse {
+        + Vectors: List<List<double>>
+    }
+}
+
+package "Configuration" {
+    class Settings {
+        + Blob: Blob
+        + Gpu: Gpu
+        + AiSearch: AiSearch
+        + Chat: Chat
+    }
+
+    class Blob {
+        + AzureConnectionString: string
+    }
+    class Gpu {
+        + ServiceName: string
+        + LocalEmbeddingUrl: string
+    }
+    class AiSearch {
+        + AzureSearchEndpoint: string
+        + AzureSearchApiKey: string
+        + AzureSearchIndexName: string
+        + AzureSearchApiVersion: string
+    }
+    class Chat {
+        + AzureOpenAiEndpoint: string
+        + AzureOpenAiApiKey: string
+        + AzureOpenAiDeploymentName: string
+    }
+    Settings *-- Blob
+    Settings *-- Gpu
+    Settings *-- AiSearch
+    Settings *-- Chat
+}
+
+package "GPU Service (Python)" {
+    class "FastAPI (main.py)" as FastAPI {
+        + POST /embed
+        + get_embeddings(req): dict
+    }
+
+    class TextRequest <<Pydantic>> {
+        + texts: list[str]
+    }
+
+    class "embeddings.py" as EmbeddingsModule {
+        - _model: SentenceTransformer
+        + get_model(): SentenceTransformer
+        + embed_text(texts): np.ndarray
+    }
+
+    FastAPI --> TextRequest : receives
+    FastAPI --> EmbeddingsModule : calls
+}
+
+}
+
+' ==================== Relationships ====================
+
+RagApiClient ..> UploadFunction : POST /upload
+RagApiClient ..> QueryFunction : GET /query
+
+UploadFunction --> IBlobStorage
+UploadFunction --> IEmbeddingClient
+UploadFunction --> IAiSearchClient
+UploadFunction ..> Utilities : uses
+
+QueryFunction --> IEmbeddingClient
+QueryFunction --> IAiSearchClient
+QueryFunction --> IChatCompletionClient
+
+ClientFactory ..|> IClientFactory
+AzureBlobStorage ..|> IBlobStorage
+GpuEmbeddingClient ..|> IEmbeddingClient
+AzureAISearchClient ..|> IAiSearchClient
+AzureOpenAIChatClient ..|> IChatCompletionClient
+
+ClientFactory ..> AzureBlobStorage : creates
+ClientFactory ..> GpuEmbeddingClient : creates
+ClientFactory ..> AzureAISearchClient : creates
+ClientFactory ..> AzureOpenAIChatClient : creates
+ClientFactory --> Settings : configured by
+
+AzureAISearchClient ..> SearchDocumentChunk : stores/retrieves
+GpuEmbeddingClient ..> VectorResponse : deserialises
+GpuEmbeddingClient ..> FastAPI : HTTP POST /embed
+QueryFunction ..> SearchDocumentChunk : uses in prompt
+
+@enduml
