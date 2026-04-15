@@ -80,16 +80,16 @@ namespace AzureFunction.Client
     public class SearchDocumentChunk
     {
         [SimpleField(IsKey = true)]
-        public string Id { get; set; }
+        public string Id { get; set; } = string.Empty;
 
         [SearchableField]
-        public string Content { get; set; }
+        public string Content { get; set; } = string.Empty;
 
         [VectorSearchField(VectorSearchDimensions = 768, VectorSearchProfileName = "mpnet-cosine-profile")]
-        public float[] Embedding { get; set; }
+        public float[] Embedding { get; set; } = Array.Empty<float>();
 
         [SimpleField]
-        public string Source { get; set; }
+        public string Source { get; set; } = string.Empty;
 
         // TODO: Programatically create the index for this class in Azure if it doesn't exist
     }

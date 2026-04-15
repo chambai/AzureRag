@@ -1,0 +1,40 @@
+﻿@inherits LayoutComponentBase
+@using Ui.Themes
+appsettings.Development.json
+
+<MudThemeProvider Theme="ChatAiTheme.Theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+
+    <MudAppBar Color="Color.Primary" Elevation="1">
+        <MudText Typo="Typo.h6">AI Document Assistant</MudText>
+    </MudAppBar>
+
+    <MudDrawer Open="true"
+               Variant="DrawerVariant.Persistent"
+               ClipMode="DrawerClipMode.Always"
+               Elevation="1"
+               Width="240px">
+
+        <MudNavMenu>
+
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Chat">
+                Chat
+            </MudNavLink>
+
+            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
+
+        </MudNavMenu>
+
+    </MudDrawer>
+
+    <MudMainContent Class="pa-4">
+        @Body
+    </MudMainContent>
+
+</MudLayout>

@@ -1,11 +1,14 @@
-# AzureRag
-**Retrieval-Augmented Generation (RAG) using Azure and local GPU**
+# AzureRag: Document Querying
+## C#/.NET, Azure, LLM, Python, CI/CD, E2E Tests
+This project allows users to query documents they have uploaded. It includes a lightweight AI component to illustrate real-world integration, with the primary focus on production-grade engineering rather than deep AI development. 
 
-AzureRag is a **multi-service, production-oriented RAG system** built using **Azure OpenAI**, **Azure AI Search**, **C#/.NET** and **Python**.  
-It ingests documents, generates embeddings, performs vector searches, and generates LLM responses specific to the uploaded documents.  With a **fully automated CI/CD pipeline**, this project is intended to demonstrate CI/CD software engineering practices applied to modern LLM systems.
+It is a **multi-service, production-oriented RAG (Retrieval-Augmented Generation) system** with scalable C# services and APIs for data ingestion, processing, and LLM (Large Language Model) serving in a cloud environment.  It also demonstrates a **fully automated CI/CD pipeline** with **E2E (End-to-End) tests** using **C#/.NET, Python, Azure, GitHub** and **Postman**. 
+
+[![Demo Video](Docs/demo_video.gif)](Docs/demo_video.mp4)
 
 ## Overview and Example
 ![Class Diagram](Docs/overview.png)
+The user uploads a teachers employmnet contract and then asks specific questions about that contract.
 
 ## Why RAG?
 LLMs provide general knowledge and cannot reliably answer questions regarding specific private documents, proprietary knowledge or when data frequently changes.  **Retrieval-Augmented Generation (RAG)** solves this by: Retrieving relevant documents via vector search, Injecting them into the prompt, and Generating **grounded, explainable answers**.  This project implements a RAG pipeline pattern end-to-end using Azure services with a local GPU performing vector embeddings to reduce costs.
@@ -55,6 +58,7 @@ Software Engineering Considerations:
 - Replace API keys with Managed Identity
 - Hybrid search (vector + keyword)
 - Observability and telemetry integration
-
+- Fine-tuned LLM
+- Azure Function Authorization
 ---
 

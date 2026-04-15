@@ -7,7 +7,7 @@ namespace AzureFunction
     public class VectorResponse
     {
         // response data from the GPU Embedding service
-        public List<List<double>> Vectors { get; set; }
+        public List<List<double>> Vectors { get; set; } = new();
     }
 
 }

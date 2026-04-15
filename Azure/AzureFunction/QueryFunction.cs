@@ -24,46 +24,87 @@ public class QueryFunction
     }
 
     [Function("QueryDocument")]
-    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", Route = "query")] HttpRequestData req, FunctionContext context)
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "query")]
+        HttpRequestData req,
+        FunctionContext context)
     {
-        // read query parameter
-        string question = req.Query["q"];
+        string? question = ExtractQuestion(req);
 
-        if (string.IsNullOrEmpty(question))
+        if (string.IsNullOrWhiteSpace(question))
+            return await CreateBadRequest(req);
+
+        try
         {
-            var badResp = req.CreateResponse(HttpStatusCode.BadRequest);
-            await badResp.WriteStringAsync("Missing query parameter 'q'.");
-            return badResp;
+            string answer = await ProcessQueryAsync(
+                question,
+                context.CancellationToken);
+
+            return await CreateOkResponse(req, answer);
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Request was cancelled.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception.");
+            var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await response.WriteStringAsync(ex.Message);
+            return response;
+        }
+    }
+
+    internal string? ExtractQuestion(HttpRequestData req)
+        => req.Query["q"];
+
+    internal async Task<string> ProcessQueryAsync(
+        string question,
+        CancellationToken cancellationToken)
+    {
         _logger.LogInformation("Received query: {Question}", question);
 
-        // Create embedding for the question
-        float[] queryVector = await _embeddingClient.GetEmbeddingAsync(question);
+        float[] queryVector =
+            await _embeddingClient.GetEmbeddingAsync(question);
 
-        // vector search
         List<SearchDocumentChunk> topChunks =
             await _searchClient.SearchByVectorAsync(
-            queryVector,
-            k: 5,
-            context.CancellationToken);
+                queryVector,
+                5,
+                cancellationToken);
 
-        // Build LLM prompt
-        string prompt =
-        "Answer the question using ONLY the information below.\n\n" +
-        string.Join("\n", topChunks.Select(t => t.Content)) +
-        "\n\nQuestion: " + question;
+        string prompt = BuildPrompt(question, topChunks);
 
+        return await _chatClient.GetAnswerAsync(
+            systemPrompt: "You are a helpful assistant.",
+            userPrompt: prompt,
+            cancellationToken: cancellationToken);
+    }
 
-        // Ask Chat client
-        string answer = await _chatClient.GetAnswerAsync(
-        systemPrompt: "You are a helpful assistant.",
-        userPrompt: prompt,
-        cancellationToken: context.CancellationToken);
+    public string BuildPrompt(
+        string question,
+        IEnumerable<SearchDocumentChunk> chunks)
+    {
+        return
+            "Answer the question using ONLY the information below.\n\n" +
+            string.Join("\n", chunks.Select(c => c.Content)) +
+            "\n\nQuestion: " + question;
+    }
 
+    private static async Task<HttpResponseData> CreateBadRequest(HttpRequestData req)
+    {
+        var response = req.CreateResponse(HttpStatusCode.BadRequest);
+        await response.WriteStringAsync("Missing query parameter 'q'.");
+        return response;
+    }
 
-        // Return result
+    private static async Task<HttpResponseData> CreateOkResponse(
+        HttpRequestData req,
+        string body)
+    {
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteStringAsync(answer);
+        await response.WriteStringAsync(body);
         return response;
     }
 }
