@@ -200,26 +200,22 @@ jobs:
       - name: Create Docker network
         run: docker network inspect azurerag-net >/dev/null 2>&1 || docker network create azurerag-net
 
-      - name: Ensure Docker network exists
-        run: |
-          docker network inspect azurerag-net || true \
-          docker network create azurerag-net
-  
       - name: Login to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
             -u ${{ github.actor }} \
             --password-stdin
 
-      - name: Pull & run GpuLocal container
+      - name: Pull & run AzureFunction container
         run: |
           docker pull ghcr.io/${{ github.repository_owner }}/azurefunction:latest
           docker stop azurefunction || true
-          docker rm azurefunction || true
+          docker rm -f azurefunction || true
+          sleep 2
           docker run -d \
             --name azurefunction \
             --network azurerag-net \
-            -p 8080:80 \
+            -p 8010:80 \
             -e Gpu__LocalEmbeddingUrl=http://gpulocal:80/embed \
             ghcr.io/${{ github.repository_owner }}/azurefunction:latest
 
@@ -282,4 +278,4 @@ jobs:
       - name: Run Postman E2E tests
         run: |
           npx newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
-            --env-var "AZUREFUNCTION=http://localhost:8080" \
+            --env-var "AZUREFUNCTION=http://localhost:8010" \
