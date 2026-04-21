@@ -276,14 +276,22 @@ jobs:
         run: |
           echo "Waiting for AzureFunction on port 8010..."
           for i in $(seq 1 30); do
-            if curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/api/query?q=ping | grep -qE '^[2-4]'; then
-              echo "AzureFunction is ready"
+            if curl -s -o /dev/null --max-time 5 http://localhost:8010/; then
+              echo "AzureFunction is ready (got HTTP response)"
               exit 0
+            fi
+            # Also check if the port is open at all
+            if nc -z localhost 8010 2>/dev/null; then
+              echo "Port 8010 is open, waiting for HTTP..."
             fi
             echo "Attempt $i/30 - not ready yet, waiting 10s..."
             sleep 10
           done
-          echo "AzureFunction did not become ready in time"
+          echo ""
+          echo "=== Debugging info ==="
+          docker ps -a
+          echo "--- azurefunction logs ---"
+          docker logs azurefunction 2>&1 | tail -50
           exit 1
 
       - name: Install Newman
