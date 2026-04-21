@@ -2,75 +2,286 @@
   "info": {
     "_postman_id": "3373073f-0ad0-4f6d-b1df-0ab1a6d6b12d",
     "name": "AzureRag_E2E",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "51737291",
-    "_collection_link": "https://go.postman.co/collection/51737291-3373073f-0ad0-4f6d-b1df-0ab1a6d6b12d?source=collection_link"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Upload Doc Success",
-      "request": {
-        "method": "POST",
-        "header": [
+      "name": "Health Check",
+      "item": [
         {
-          "key": "X-Filename",
-          "value": "test_upload.txt",
-          "type": "text"
-        }
-      ],
-        "body": {
-          "mode": "formdata",
-          "formdata": [
+          "name": "Wait for AzureFunction to be ready",
+          "event": [
             {
-              "key": "file",
-              "type": "file",
-              "src": "E2E_Tests/files/test_upload.txt"
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('AzureFunction is reachable', function () {",
+                  "    pm.expect(pm.response.code).to.be.below(500);",
+                  "});"
+                ]
+              }
             }
-          ]
-        },
-        "url": {
-          "raw": "{{AZUREFUNCTION}}/api/upload",
-          "host": ["{{AZUREFUNCTION}}"],
-          "path": ["api", "upload"]
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/query?q=ping",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "query"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "ping"
+                }
+              ]
+            }
+          },
+          "response": []
         }
+      ]
     },
-    "response": []
-  },
-  {
-    "name": "Ask a Question: Secondary Employment",
-    "request": {
-      "method": "GET",
-      "url": {
-        "raw": "{{AZUREFUNCTION}}/api/query?question=Am%20I%20allowed%20secondary%20employment",
-        "host": ["{{AZUREFUNCTION}}"],
-        "path": ["api", "query"],
-        "query": [
-          {
-            "key": "q",
-            "value": "Am I allowed secondary employment"
-          }
-        ]
-      }
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "Upload document successfully",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response confirms upload', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.include('test_upload.txt');",
+                  "    pm.expect(body).to.include('uploaded');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Filename",
+                "value": "test_upload.txt",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "E2E_Tests/files/test_upload.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/upload",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload fails without X-Filename header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error mentions missing header', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.include('X-Filename');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "E2E_Tests/files/test_upload.txt"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/upload",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload fails without file body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Filename",
+                "value": "empty.txt",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/upload",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "upload"]
+            }
+          },
+          "response": []
+        }
+      ]
     },
-    "response": []
-  },
-  {
-    "name": "Ask a Question: Payment",
-    "request": {
-      "method": "GET",
-      "url": {
-        "raw": "{{AZUREFUNCTION}}/api/query?question=How%20often%20is%20payment%20and%20what%20happens%20if%20overpaid",
-        "host": ["{{AZUREFUNCTION}}"],
-        "path": ["api", "query"],
-        "query": [
-          {
-            "key": "q",
-            "value": "How often is payment and what happens if overpaid"
-          }
-        ]
-      }
-    },
-    "response": []
-  }
+    {
+      "name": "Query",
+      "item": [
+        {
+          "name": "Query about secondary employment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is not empty', function () {",
+                  "    pm.expect(pm.response.text().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Response mentions employment', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.match(/employ|secondary|inform|manager/);",
+                  "});",
+                  "",
+                  "pm.test('Response time is under 30s', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(30000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/query?q=Am I allowed secondary employment",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "query"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Am I allowed secondary employment"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Query about payment and overpayment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is not empty', function () {",
+                  "    pm.expect(pm.response.text().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Response mentions payment', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.match(/paid|payment|salary|overpay|recovery/);",
+                  "});",
+                  "",
+                  "pm.test('Response time is under 30s', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(30000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/query?q=How often is payment and what happens if overpaid",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "query"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "How often is payment and what happens if overpaid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Query fails without question parameter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error mentions missing parameter', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.include('q');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{AZUREFUNCTION}}/api/query",
+              "host": ["{{AZUREFUNCTION}}"],
+              "path": ["api", "query"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
   ]
 }

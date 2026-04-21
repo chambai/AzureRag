@@ -272,10 +272,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Wait for AzureFunction to be ready
+        run: |
+          echo "Waiting for AzureFunction on port 8010..."
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:8010/api/query?q=ping; then
+              echo "AzureFunction is ready"
+              exit 0
+            fi
+            echo "Attempt $i/30 - not ready yet, waiting 10s..."
+            sleep 10
+          done
+          echo "AzureFunction did not become ready in time"
+          exit 1
+
       - name: Install Newman
-        run: npm install newman
+        run: npm install newman newman-reporter-htmlextra
 
       - name: Run Postman E2E tests
         run: |
           npx newman run E2E_Tests/AzureRag_E2E.postman_collection.json \
             --env-var "AZUREFUNCTION=http://localhost:8010" \
+            --timeout-request 60000 \
+            --delay-request 1000 \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export E2E_Tests/report.html
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report
+          path: E2E_Tests/report.html
+          retention-days: 14
