@@ -276,7 +276,7 @@ jobs:
         run: |
           echo "Waiting for AzureFunction on port 8010..."
           for i in $(seq 1 30); do
-            if curl -sf -o /dev/null http://localhost:8010/api/query?q=ping; then
+            if curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/api/query?q=ping | grep -qE '^[2-4]'; then
               echo "AzureFunction is ready"
               exit 0
             fi

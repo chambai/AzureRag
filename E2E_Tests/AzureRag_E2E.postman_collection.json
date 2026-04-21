@@ -6,41 +6,6 @@
   },
   "item": [
     {
-      "name": "Health Check",
-      "item": [
-        {
-          "name": "Wait for AzureFunction to be ready",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('AzureFunction is reachable', function () {",
-                  "    pm.expect(pm.response.code).to.be.below(500);",
-                  "});"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{AZUREFUNCTION}}/api/query?q=ping",
-              "host": ["{{AZUREFUNCTION}}"],
-              "path": ["api", "query"],
-              "query": [
-                {
-                  "key": "q",
-                  "value": "ping"
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
       "name": "Upload",
       "item": [
         {
