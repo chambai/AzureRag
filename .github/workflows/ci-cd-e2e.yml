@@ -39,12 +39,15 @@ jobs:
       gpulocal: ${{ steps.filter.outputs.gpulocal }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
 
       - name: Detect changed paths
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.event.before || github.event.pull_request.base.sha || 'HEAD~1' }}
           filters: |
             azurefunction:
               - 'Azure/**'
@@ -63,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -92,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -131,7 +134,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GHCR
         run: |
@@ -165,7 +168,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GHCR
         run: |
@@ -279,7 +282,7 @@ jobs:
     runs-on: [self-hosted, machine-b]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Wait for AzureFunction to be ready
         run: |
@@ -317,7 +320,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-test-report
           path: E2E_Tests/report.html
