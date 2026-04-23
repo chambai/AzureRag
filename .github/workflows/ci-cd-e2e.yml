@@ -218,7 +218,7 @@ jobs:
             -p 8010:80 \
             -e AzureWebJobsStorage="${{ secrets.AZURE_WEBJOBS_STORAGE }}" \
             -e Blob__AzureConnectionString="${{ secrets.BLOB_CONNECTION_STRING }}" \
-            -e Gpu__LocalEmbeddingUrl=http://gpulocal:80/embed \
+            -e Gpu__LocalEmbeddingUrl=http://gpulocal:9000/embed \
             -e AiSearch__AzureSearchEndpoint="${{ secrets.AISEARCH_ENDPOINT }}" \
             -e AiSearch__AzureSearchApiKey="${{ secrets.AISEARCH_API_KEY }}" \
             -e AiSearch__AzureSearchIndexName="${{ secrets.AISEARCH_INDEX_NAME }}" \
